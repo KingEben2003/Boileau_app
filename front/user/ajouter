@@ -1,0 +1,269 @@
+1. Types de quiz et limitation
+Types de quiz disponibles :
+
+QCM (multiple choice).
+
+Vrai / Faux.
+
+Question ouverte (texte libre, réponse courte).
+
+Question mixte : QCM + Vrai/Faux + ouverte dans le même quiz.
+
+Limitation :
+
+Un utilisateur peut générer jusqu’à 20 quiz maximum par compte.
+
+Passé ce nombre, un message affiche : "Limite atteinte : vous avez déjà 20 quiz.".
+
+2. Pages de quiz et navigation
+A. Quiz fraîchement généré
+Sur la page d’un quiz fraîchement généré :
+
+Afficher un bouton principal :
+
+Texte : "Commencer le quiz".
+
+Style : bouton principal (couleur vive, ombre légère, hover).
+
+Animation :
+
+Légère montée + zoom (scale 0.95 → 1) avec transition fluide (0.3 s) au survol.
+
+Sound effect :
+
+Un petit son de clic “doux” (type clic game UI) au clic.
+
+B. Quiz déjà fait
+Si le quiz a déjà été fait par l’utilisateur :
+
+Afficher deux boutons :
+
+"Voir le résumé" ou "Voir le quiz" (selon ce qui existe déjà côté back‑end).
+
+Si aucun résumé n’existe encore : bouton "Passer au résumé" (qui génère un résumé statique).
+
+Visuellement :
+
+Les boutons sont alignés en row ou en colonne (selon la taille d’écran).
+
+Hover : légère ombre + fond légèrement plus clair.
+
+3. Mise en valeur du titre historique
+Le titre historique (par exemple le titre du quiz ou la matière) doit être :
+
+Plus mis en exergue que les autres textes.
+
+Spécifications UI :
+
+Taille de police : 1.4–1.6× plus grande que le body.
+
+Couleur : couleur principale de l’app (ex: bleu ou violet) ou or pour le “gamifié”.
+
+Style :
+
+Gras (bold).
+
+Optionnel : souligné stylisé ou halo lumineux léger.
+
+Animation :
+
+À l’ouverture de la page quiz, le titre se dévoile par un fade‑in (0.5 s) avec un léger slide du haut.
+
+Sound effect :
+
+Un léger son de “pop” ou de cristal” au début de l’animation pour marquer l’entrée.
+
+4. Système complet de gamification (on clique sur “Gamifier”)
+En cliquant sur le bouton “Gamifier” (ou un bouton équivalent) :
+
+A. Niveaux et échelle
+Créer une échelle de niveaux :
+
+Exemple : Niveau 1 → 2 → 3 → ... → 10 (ou plus).
+
+Visuellement :
+
+Afficher une barre d’échelle horizontale ou verticale avec des icônes de niveau (étapes).
+
+Chaque niveau est un cercle/étape avec badge (ex: “Niveau 1”, “Débutant”, etc.).
+
+Lorsque l’utilisateur monte de niveau :
+
+Animation :
+
+L’icône du niveau s’illumine (lumière + scale 1.1 pendant 0.4 s).
+
+L’ancien niveau se dé-sature légèrement.
+
+Sound effect :
+
+Un son de “level up” (petit ping + crescendo) ou applaudissements courts.
+
+B. Faiblesses par thème (heatmap)
+Heatmap visuelle des faiblesses par thème :
+
+Afficher une grille ou carte de couleurs où chaque case = un thème (ex: “Histoire”, “Maths”, etc.).
+
+Couleurs :
+
+Vert foncé = très forte performance.
+
+Jaune/orange = performance moyenne.
+
+Rouge = faiblesses importantes.
+
+Animation :
+
+À l’ouverture de la heatmap, les cases apparaissent une par une avec un pulse léger (0.2 s).
+
+Sound effect :
+
+Un son de “scan” léger (type notification) par rangée de cases.
+
+C. Défis quotidiens & récompenses cosmétiques
+Défis quotidiens :
+
+1–3 défis par jour (ex: “Faire 3 quiz”, “Gagner 100 points”, etc.).
+
+Affichage :
+
+Liste verticale avec icône de check si terminé.
+
+Animation :
+
+Quand un défi est terminé :
+
+L’icône tremble légèrement + check vert qui se dévoile.
+
+Sound effect :
+
+Un son de succès court au check (type “ping” ou coin collecté).
+
+Récompenses cosmétiques :
+
+Avatars, badges, thèmes UI (couleurs, polices), bords décoratifs, etc.
+
+Animation :
+
+Quand un item est débloqué :
+
+Il saute légèrement (jump) + halo lumineux.
+
+Sound effect :
+
+Un son de “récompense” type caisse enregistreuse” ou ding.
+
+5. Quiz culture générale et thèmes
+Quiz culture générale :
+
+Système de rubriques et questions par thèmes (ex: “Géographie”, “Sport”, etc.).
+
+Les rubriques et questions sont gérés dans l’administration (créé plus tard, mais prévoir le modèle).
+
+UI :
+
+Afficher une grille de thèmes avec mini‑icônes.
+
+Animation au clic sur un thème :
+
+L’icône se grossit (scale 1.1) + vibration légère.
+
+Sound effect :
+
+Un son de “sélection” léger.
+
+6. Ajout d’amis
+Ajout d’amis :
+
+Deux options :
+
+Par identifiant (pseudo).
+
+Par email.
+
+UI :
+
+Champ de formulaire + bouton "Ajouter".
+
+Animation :
+
+Lorsque l’ami est ajouté :
+
+L’ami glisse dans la liste depuis la droite (slide in).
+
+Sound effect :
+
+Un son de “connection” (type bip doux).
+
+7. Défis quiz entre amis (affrontement en temps réel)
+Lancer des défis quiz à des amis :
+
+L’utilisateur peut :
+
+Choisir un ami.
+
+Choisir un type de quiz ou un thème.
+
+Lancer le défi en temps réel.
+
+Pendant le duel :
+
+UI :
+
+Deux profils côte à côte avec scores et barre de progression.
+
+Indicateur de temps (si le quiz est chronométré).
+
+Animations :
+
+Quand un joueur répond :
+
+Sa colonne de score monte avec une petite vibration.
+
+À la fin du quiz :
+
+Un effet de “podium” (animation des deux joueurs qui se déplacent vers le podium).
+
+Sound effects :
+
+Son de tension pendant le jeu (léger, répétitif).
+
+Fête/vente de victoire quand le gagnant est déterminé (applaudissements ou fanfare courte).
+
+8. Classement en temps réel (partie solo)
+Pour une partie solo donnée :
+
+Afficher un classement en temps réel par rapport aux autres utilisateurs.
+
+UI :
+
+Liste ou tableau avec :
+
+Pseudo + score + temps.
+
+Mettre en évidence la ligne de l’utilisateur (fond coloré, icône “toi”).
+
+Animations :
+
+Quand le classement change :
+
+Les lignes se réorganisent avec une animation de slide douce.
+
+Sound effect :
+
+Un son de mise à jour (ex: “whoosh” court) quand le classement se recharge.
+
+9. Recommandation de sons (sound effects) à utiliser
+Pour toute l’application, tu peux utiliser des sons courts, non intrusifs, de type :
+
+Interaction	Type de son conseillé
+Interaction	Type de son conseillé
+Clic sur bouton	Clic léger / “UI click”
+Réponse correcte	“Correct” / ping lumineux
+Réponse incorrecte	“Error” / petit son de dissonance
+Passer au prochain niveau	“Level up” / crescendo court
+Débloquer un badge / récompense	“Coin collected” / ding
+Lancer un défi / une partie	“Game start” / bip plus dynamique
+Ouverture du titre / page	“Pop” / cristal léger
+
+Les sound effect seront défini bien plutard une une fois l'administration faite on fait avec ça pour le moment

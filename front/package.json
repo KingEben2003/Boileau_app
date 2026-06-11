@@ -1,0 +1,19 @@
+{
+  "name": "boileau-front",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Monorepo frontend Boileau — app utilisateur (port 3000) + console d'administration (port 3001)",
+  "scripts": {
+    "dev": "concurrently --kill-others-on-fail --names \"USER,ADMIN\" --prefix-colors \"cyan.bold,magenta.bold\" \"npm:start:user\" \"npm:start:admin\"",
+    "start": "npm run dev",
+    "start:user": "npm start --prefix user",
+    "start:admin": "npm start --prefix admin",
+    "build": "npm run build:user && npm run build:admin",
+    "build:user": "npm run build --prefix user",
+    "build:admin": "npm run build --prefix admin",
+    "install:all": "npm install && npm install --prefix user && npm install --prefix admin"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

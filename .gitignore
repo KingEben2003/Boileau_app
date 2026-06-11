@@ -1,0 +1,53 @@
+# =============================================================================
+# BOILEAU — .gitignore
+# =============================================================================
+
+# ── Secrets (NE JAMAIS COMMITTER) ────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+back/.env
+
+# ── Python / Django ───────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.Python
+back/.venv/
+back/venv/
+back/env/
+back/*.egg-info/
+back/dist/
+back/build/
+back/.pytest_cache/
+back/staticfiles/
+back/static_root/
+
+# Fichiers media uploadés par les utilisateurs (servis hors Git en production)
+back/media/
+
+# ── Node.js / React ───────────────────────────────────────────────────────────
+front/user/node_modules/
+front/user/build/
+front/user/.pnp
+front/user/.pnp.js
+front/user/coverage/
+front/user/.eslintcache
+
+# ── IDE ───────────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Divers ────────────────────────────────────────────────────────────────────
+*.sqlite3
+db.sqlite3

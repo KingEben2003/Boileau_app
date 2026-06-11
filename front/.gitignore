@@ -1,0 +1,4 @@
+# Monorepo front — dépendances racine (orchestrateur)
+/node_modules
+
+# Les apps user/ et admin/ ont leurs propres .gitignore
