@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { FiPlay, FiArrowLeft, FiCheckCircle, FiX, FiRefreshCw } from "react-icons/fi";
-import { getQuizzes, getQuiz, submitQuizResult } from "../../services/api";
+import { FiPlay, FiArrowLeft, FiCheckCircle, FiX, FiRefreshCw, FiZap, FiUsers } from "react-icons/fi";
+import { getQuizzes, getQuiz, submitQuizResult, getFriends, sendChallenge } from "../../services/api";
 import { popIn, staggerContainer, staggerItem, hoverLift, tap, EASE } from "../../lib/motion";
 import { useGameSounds } from "../../GameSoundContext";
 import MuteButton from "../ui/MuteButton";
@@ -23,6 +23,9 @@ export default function QuizPlayer({ documentId, onBack }) {
   const [quizStartTime, setQuizStartTime] = useState(null);
   const [lockedAnswer, setLockedAnswer] = useState(null);
   const [isFinishing, setIsFinishing] = useState(false);
+  const [challengeState, setChallengeState] = useState("idle"); // idle|picking|sending|sent|error
+  const [friends, setFriends] = useState([]);
+  const [challengeError, setChallengeError] = useState("");
   const { startMusic, stopMusic, playCorrect, playWrong, playWin, playLose } = useGameSounds();
 
   // Coupe la musique si on quitte le lecteur de quiz.
@@ -61,6 +64,8 @@ export default function QuizPlayer({ documentId, onBack }) {
       setIsFinishing(false);
       setLockedAnswer(null);
       setQuizStartTime(Date.now());
+      setChallengeState("idle");
+      setChallengeError("");
       startMusic();
     } catch (err) {
       setError(err.message || "Impossible de charger le quiz.");
@@ -401,12 +406,93 @@ export default function QuizPlayer({ documentId, onBack }) {
             })}
           </div>
 
-          <button
-            onClick={resetToList}
-            className="btn-primary w-full bg-pink-500 hover:bg-pink-600 shadow-pink-500/25"
-          >
-            Retour aux quizzes
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={resetToList}
+              className="btn-secondary flex-1"
+            >
+              Retour aux quizzes
+            </button>
+            <motion.button
+              {...tap}
+              onClick={async () => {
+                if (challengeState === "idle") {
+                  setChallengeState("picking");
+                  setChallengeError("");
+                  const list = await getFriends().catch(() => []);
+                  setFriends(Array.isArray(list) ? list : []);
+                } else {
+                  setChallengeState("idle");
+                }
+              }}
+              className="btn-primary flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500"
+            >
+              <FiZap size={15} />
+              {challengeState === "idle" ? "Défier un ami" : "Annuler"}
+            </motion.button>
+          </div>
+
+          {/* Sélecteur d'ami pour le défi */}
+          {(challengeState === "picking" || challengeState === "sending" || challengeState === "sent" || challengeState === "error") && (
+            <div className="mt-4 p-4 bg-white/5 rounded-2xl border border-white/10">
+              {challengeState === "sent" ? (
+                <div className="text-center py-2">
+                  <FiCheckCircle className="text-emerald-400 mx-auto mb-2" size={28} />
+                  <p className="text-emerald-300 font-bold text-sm">Défi envoyé !</p>
+                  <p className="text-gray-500 text-xs mt-1">Votre ami recevra une notification.</p>
+                </div>
+              ) : friends.length === 0 ? (
+                <div className="text-center py-2">
+                  <FiUsers className="text-gray-600 mx-auto mb-2" size={24} />
+                  <p className="text-gray-500 text-sm">Aucun ami à défier pour l'instant.</p>
+                  <p className="text-xs text-gray-600 mt-1">Ajoutez des amis dans la section Amis & Défis.</p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3">Choisissez un ami</p>
+                  {challengeError && <p className="text-xs text-red-400 mb-2">{challengeError}</p>}
+                  <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
+                    {friends.map((f) => (
+                      <motion.button
+                        key={f.id}
+                        {...tap}
+                        disabled={challengeState === "sending"}
+                        onClick={async () => {
+                          setChallengeState("sending");
+                          setChallengeError("");
+                          try {
+                            const sc = calculateScore();
+                            await sendChallenge(f.id, selectedQuiz.id, {
+                              score: sc.percentage,
+                              answersDetail: userAnswers,
+                            });
+                            setChallengeState("sent");
+                          } catch (err) {
+                            setChallengeError(err.message || "Erreur lors de l'envoi du défi.");
+                            setChallengeState("picking");
+                          }
+                        }}
+                        className="w-full flex items-center gap-3 p-3 bg-white/5 hover:bg-indigo-500/10 border border-white/10 hover:border-indigo-500/30 rounded-xl text-left transition-all"
+                      >
+                        <div className="w-9 h-9 rounded-xl bg-indigo-500/20 flex items-center justify-center text-sm font-black text-indigo-300 flex-shrink-0">
+                          {(f.username || "?")[0].toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-white truncate">{f.username}</p>
+                          <p className="text-[10px] text-gray-500">Niv.{f.level ?? 1} · {Math.round(f.score ?? 0)}%</p>
+                        </div>
+                        {challengeState === "sending" ? (
+                          <span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                        ) : (
+                          <FiZap size={14} className="text-indigo-400 flex-shrink-0" />
+                        )}
+                      </motion.button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </motion.div>
         </div>
         </div>

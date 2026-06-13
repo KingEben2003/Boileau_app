@@ -7,26 +7,38 @@ on:
     branches: [main, master]
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECRETS GITHUB À CONFIGURER (Settings → Secrets and variables → Actions) :
+# SECRETS GITHUB À CONFIGURER (Settings → Secrets and variables → Actions)
 #
-#   SECRET_KEY          Clé secrète Django (production)
-#   DATABASE_URL        URL de la base de données de production
-#   GEMINI_API_KEY      Clé API Google Gemini
-#   GOOGLE_CLIENT_ID    Client ID OAuth Google
-#   ONESIGNAL_APP_ID    App ID OneSignal
-#   REDIS_URL           URL Redis (laisser vide si pas encore dispo)
-#   EMAIL_BACKEND       django.core.mail.backends.smtp.EmailBackend
-#   EMAIL_HOST          smtp.gmail.com
-#   EMAIL_HOST_USER     votre-email@gmail.com
-#   EMAIL_HOST_PASSWORD mot de passe d'application Gmail
-#   DEFAULT_FROM_EMAIL  noreply@boileau.app
+# ── Django / Backend ─────────────────────────────────────────────────────────
+#   SECRET_KEY              Clé secrète Django (production)
+#   DATABASE_URL            URL de la base (ex: mysql://user:pass@host:3306/db)
+#   GEMINI_API_KEY          Clé API Google AI Studio
+#   GOOGLE_CLIENT_ID        Client ID OAuth Google
+#   ONESIGNAL_APP_ID        App ID OneSignal (push frontend)
+#   ONESIGNAL_REST_API_KEY  REST API Key OneSignal (push backend → challenger)
+#   REDIS_URL               URL Redis (laisser vide sur O2Switch sans Redis)
+#   EMAIL_BACKEND           django.core.mail.backends.smtp.EmailBackend
+#   EMAIL_HOST              smtp.gmail.com (ou SMTP O2Switch)
+#   EMAIL_HOST_USER         votre-email@gmail.com
+#   EMAIL_HOST_PASSWORD     Mot de passe d'application Gmail
+#   DEFAULT_FROM_EMAIL      noreply@votre-domaine.com
+#   ALLOWED_HOSTS           votre-domaine.com,www.votre-domaine.com
 #
-#   Pour le déploiement SSH sur VPS :
-#   SSH_HOST            IP ou domaine du serveur
-#   SSH_USER            Utilisateur SSH (ex: ubuntu, deploy)
-#   SSH_PRIVATE_KEY     Clé privée SSH (contenu complet, inclus -----BEGIN...)
-#   DEPLOY_PATH         Chemin du projet sur le serveur (ex: /var/www/boileau)
-#   REACT_APP_API_BASE_URL  URL API en production (ex: https://boileau.app/api)
+# ── Déploiement SSH — O2Switch (cPanel + Phusion Passenger) ─────────────────
+#   SSH_HOST            Serveur SSH O2Switch (ex: ssh.cluster0XX.o2switch.net)
+#   SSH_USER            Login cPanel O2Switch
+#   SSH_PRIVATE_KEY     Clé privée SSH (contenu complet avec -----BEGIN...)
+#   DEPLOY_PATH         Chemin absolu du repo sur le serveur
+#                       ex: /home/monlogin/boileau
+#   PYTHON_BIN          Chemin complet du Python dans le venv créé par cPanel
+#                       ex: /home/monlogin/virtualenv/boileau/back/3.12/bin/python
+#   FRONTEND_PATH       Dossier où copier le build React (racine du domaine/sous-domaine)
+#                       ex: /home/monlogin/public_html  (ou dossier du sous-domaine)
+#   REACT_APP_API_BASE_URL  URL de l'API en prod (ex: https://votre-domaine.com/api)
+#
+# ── Comment trouver PYTHON_BIN sur O2Switch ──────────────────────────────────
+#   cPanel → Python App Manager → votre app → "Enter to the virtual environment"
+#   → copier la commande source … et utiliser le dossier bin/python
 # ─────────────────────────────────────────────────────────────────────────────
 
 jobs:
@@ -64,7 +76,7 @@ jobs:
       - name: Installer les dépendances Python
         run: pip install -r back/requirements.txt
 
-      - name: Vérifications Django (structure + migrations)
+      - name: Vérifier la structure Django
         working-directory: back
         env:
           SECRET_KEY: ci-secret-key-not-used-in-prod
@@ -73,9 +85,9 @@ jobs:
           GEMINI_MOCK_MODE: "true"
           ALLOWED_HOSTS: localhost
         run: |
-          python manage.py check --deploy 2>&1 | grep -v "WARNINGS" || true
+          python manage.py check
           python manage.py migrate --run-syncdb
-          python manage.py test --verbosity=2
+          python manage.py test --verbosity=1
 
   # ───────────────────────────────────────────────────────────────────────────
   # JOB 2 — Build frontend React
@@ -102,7 +114,7 @@ jobs:
         working-directory: front/user
         env:
           REACT_APP_API_BASE_URL: ${{ secrets.REACT_APP_API_BASE_URL }}
-          CI: "false"   # évite que les warnings React soient traités comme des erreurs
+          CI: "false"
         run: npm run build
 
       - name: Archiver le build
@@ -113,11 +125,11 @@ jobs:
           retention-days: 1
 
   # ───────────────────────────────────────────────────────────────────────────
-  # JOB 3 — Déploiement sur serveur (SSH)
-  # Ne s'exécute que sur push vers main/master (pas sur les PR).
+  # JOB 3 — Déploiement sur O2Switch (SSH)
+  # S'exécute uniquement sur push vers main/master (pas sur les PR).
   # ───────────────────────────────────────────────────────────────────────────
   deploy:
-    name: Déploiement production
+    name: Déploiement O2Switch
     runs-on: ubuntu-latest
     needs: [test-backend, build-frontend]
     if: github.event_name == 'push'
@@ -129,19 +141,19 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: frontend-build
-          path: front/user/build/
+          path: frontend-dist/
 
-      - name: Copier le build sur le serveur
+      - name: Copier le build React vers le dossier public du domaine
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "front/user/build/"
-          target: "${{ secrets.DEPLOY_PATH }}/front/user/"
-          strip_components: 3   # supprime front/user/build du chemin distant
+          source: "frontend-dist/"
+          target: "${{ secrets.FRONTEND_PATH }}"
+          strip_components: 1   # supprime "frontend-dist/" du chemin distant
 
-      - name: Déployer sur le serveur
+      - name: Déployer le backend sur O2Switch
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -151,20 +163,18 @@ jobs:
             set -e
             cd ${{ secrets.DEPLOY_PATH }}
 
-            echo "── Pull du code ──"
+            echo "=== Pull du code ==="
             git pull origin main
 
-            echo "── Backend ──"
+            echo "=== Installation des dépendances Python ==="
             cd back
-            source .venv/bin/activate
+            ${{ secrets.PYTHON_BIN }} -m pip install -r requirements.txt --quiet
 
-            pip install -r requirements.txt --quiet
-
-            # Écriture du .env de production depuis les secrets GitHub
-            cat > .env <<EOF
+            echo "=== Écriture du .env de production ==="
+            cat > .env << 'ENVEOF'
             SECRET_KEY=${{ secrets.SECRET_KEY }}
             DEBUG=false
-            ALLOWED_HOSTS=${{ secrets.SSH_HOST }}
+            ALLOWED_HOSTS=${{ secrets.ALLOWED_HOSTS }}
             DATABASE_URL=${{ secrets.DATABASE_URL }}
             REDIS_URL=${{ secrets.REDIS_URL }}
             GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
@@ -172,21 +182,22 @@ jobs:
             GEMINI_MOCK_MODE=false
             GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
             ONESIGNAL_APP_ID=${{ secrets.ONESIGNAL_APP_ID }}
+            ONESIGNAL_REST_API_KEY=${{ secrets.ONESIGNAL_REST_API_KEY }}
+            CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}
             EMAIL_BACKEND=${{ secrets.EMAIL_BACKEND }}
             EMAIL_HOST=${{ secrets.EMAIL_HOST }}
             EMAIL_HOST_USER=${{ secrets.EMAIL_HOST_USER }}
             EMAIL_HOST_PASSWORD=${{ secrets.EMAIL_HOST_PASSWORD }}
             DEFAULT_FROM_EMAIL=${{ secrets.DEFAULT_FROM_EMAIL }}
-            EOF
+            ENVEOF
 
-            python manage.py migrate --no-input
-            python manage.py collectstatic --no-input --clear
-            python manage.py cleanup_ws_tickets
+            echo "=== Migrations ==="
+            ${{ secrets.PYTHON_BIN }} manage.py migrate --no-input
 
-            echo "── Redémarrage Daphne ──"
-            sudo systemctl restart boileau-backend
+            echo "=== Fichiers statiques ==="
+            ${{ secrets.PYTHON_BIN }} manage.py collectstatic --no-input --clear
 
-            echo "── Rechargement Nginx ──"
-            sudo systemctl reload nginx
+            echo "=== Redémarrage Passenger ==="
+            mkdir -p tmp && touch tmp/restart.txt
 
-            echo "── Déploiement terminé ✓ ──"
+            echo "=== Déploiement terminé ==="

@@ -10,7 +10,6 @@ export default function DashboardLayout({
   selectedDocId,
   onSelectDoc,
   documents,
-  onChallengeFriend,
   searchQuery,
   onSearchChange,
 }) {
@@ -32,7 +31,6 @@ export default function DashboardLayout({
         <TopBar
           toggleSidebar={() => setSidebarOpen((o) => !o)}
           onSectionChange={onSectionChange}
-          onChallengeFriend={onChallengeFriend}
           searchQuery={searchQuery}
           onSearchChange={onSearchChange}
         />

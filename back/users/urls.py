@@ -1,7 +1,5 @@
 from django.urls import path
 
-from duel.views import WSTicketView
-
 from .views import (
     UserProfileAPIView, RegisterView, LoginView, GoogleLoginView,
     LogoutView, CookieTokenRefreshView,
@@ -17,7 +15,6 @@ urlpatterns = [
     path("google-login/", GoogleLoginView.as_view(), name="google-login"),
     path("auth/logout/", LogoutView.as_view(), name="logout"),
     path("auth/token/refresh/", CookieTokenRefreshView.as_view(), name="token-refresh"),
-    path("ws-ticket/", WSTicketView.as_view(), name="ws-ticket"),
     path("forgot-password/", ForgotPasswordView.as_view(), name="forgot-password"),
     path("verify-code/", VerifyCodeView.as_view(), name="verify-code"),
     path("reset-password/", ResetPasswordView.as_view(), name="reset-password"),

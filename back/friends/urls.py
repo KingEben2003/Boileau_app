@@ -1,20 +1,26 @@
 from django.urls import path
 
 from .views import (
-    AcceptDuelChallengeView,
+    AcceptChallengeView,
     AcceptFriendRequestView,
     AddFriendView,
+    ChallengeDetailView,
+    ChallengeListView,
     DeclineFriendRequestView,
-    DuelChallengeListView,
     FriendListView,
     FriendRemoveView,
     FriendRequestListView,
+    MarkNotificationsReadView,
+    NotificationListView,
+    RefuseChallengeView,
     SendChallengeView,
-    SendDuelChallengeView,
     SendFriendRequestView,
+    SubmitChallengeAnswersView,
+    UnreadNotificationCountView,
 )
 
 urlpatterns = [
+    # Amis
     path("friends/", FriendListView.as_view(), name="friend-list"),
     path("friends/requests/", FriendRequestListView.as_view(), name="friend-requests"),
     path("friends/requests/<int:request_id>/accept/", AcceptFriendRequestView.as_view(), name="accept-friend-request"),
@@ -22,8 +28,17 @@ urlpatterns = [
     path("friends/request/", SendFriendRequestView.as_view(), name="send-friend-request"),
     path("friends/add/", AddFriendView.as_view(), name="add-friend"),
     path("friends/<int:friend_id>/", FriendRemoveView.as_view(), name="friend-remove"),
-    path("challenges/", DuelChallengeListView.as_view(), name="challenge-list"),
+
+    # Défis asynchrones
+    path("challenges/", ChallengeListView.as_view(), name="challenge-list"),
     path("challenges/send/", SendChallengeView.as_view(), name="send-challenge"),
-    path("challenges/duel/", SendDuelChallengeView.as_view(), name="send-duel-challenge"),
-    path("challenges/<int:challenge_id>/accept/", AcceptDuelChallengeView.as_view(), name="accept-duel-challenge"),
+    path("challenges/<int:challenge_id>/", ChallengeDetailView.as_view(), name="challenge-detail"),
+    path("challenges/<int:challenge_id>/accept/", AcceptChallengeView.as_view(), name="accept-challenge"),
+    path("challenges/<int:challenge_id>/refuse/", RefuseChallengeView.as_view(), name="refuse-challenge"),
+    path("challenges/<int:challenge_id>/submit/", SubmitChallengeAnswersView.as_view(), name="submit-challenge"),
+
+    # Notifications
+    path("notifications/", NotificationListView.as_view(), name="notification-list"),
+    path("notifications/read/", MarkNotificationsReadView.as_view(), name="notifications-read"),
+    path("notifications/unread-count/", UnreadNotificationCountView.as_view(), name="notifications-unread-count"),
 ]

@@ -357,12 +357,14 @@ export async function removeFriend(friendId) {
   }
 }
 
-export async function sendChallenge(friendId, { quizType, theme }) {
+/** Envoie un défi à un ami sur un quiz précis (depuis la page de résultats). */
+export async function sendChallenge(friendId, quizId, { score, answersDetail }) {
   try {
     const response = await apiClient.post('/challenges/send/', {
       friend_id: friendId,
-      quiz_type: quizType,
-      theme,
+      quiz_id: quizId,
+      score,
+      answers_detail: answersDetail,
     });
     return response.data;
   } catch (error) {
@@ -370,21 +372,7 @@ export async function sendChallenge(friendId, { quizType, theme }) {
   }
 }
 
-export async function sendDuelChallenge(friendId, { rounds, themes, timerSeconds }) {
-  try {
-    const response = await apiClient.post('/challenges/duel/', {
-      friend_id: friendId,
-      rounds,
-      themes,
-      timer_seconds: timerSeconds,
-    });
-    return response.data;
-  } catch (error) {
-    throw toApiError(error);
-  }
-}
-
-export async function getDuelChallenges() {
+export async function getChallenges() {
   try {
     const response = await apiClient.get('/challenges/');
     return response.data;
@@ -393,7 +381,16 @@ export async function getDuelChallenges() {
   }
 }
 
-export async function acceptDuelChallenge(challengeId) {
+export async function getChallengeDetail(challengeId) {
+  try {
+    const response = await apiClient.get(`/challenges/${challengeId}/`);
+    return response.data;
+  } catch (error) {
+    throw toApiError(error);
+  }
+}
+
+export async function acceptChallenge(challengeId) {
   try {
     const response = await apiClient.post(`/challenges/${challengeId}/accept/`);
     return response.data;
@@ -402,13 +399,50 @@ export async function acceptDuelChallenge(challengeId) {
   }
 }
 
-/** Short-lived WebSocket ticket (30 s TTL, single-use). */
-export async function getWSTicket() {
+export async function refuseChallenge(challengeId) {
   try {
-    const response = await apiClient.post('/ws-ticket/');
+    await apiClient.post(`/challenges/${challengeId}/refuse/`);
+  } catch (error) {
+    throw toApiError(error);
+  }
+}
+
+export async function submitChallengeAnswers(challengeId, { score, answersDetail }) {
+  try {
+    const response = await apiClient.post(`/challenges/${challengeId}/submit/`, {
+      score,
+      answers_detail: answersDetail,
+    });
     return response.data;
   } catch (error) {
     throw toApiError(error);
+  }
+}
+
+/* ─── Notifications internes ──────────────────────────────────────────── */
+export async function getNotifications() {
+  try {
+    const response = await apiClient.get('/notifications/');
+    return response.data;
+  } catch (error) {
+    throw toApiError(error);
+  }
+}
+
+export async function markNotificationsRead() {
+  try {
+    await apiClient.post('/notifications/read/');
+  } catch {
+    // non-bloquant
+  }
+}
+
+export async function getUnreadNotificationCount() {
+  try {
+    const response = await apiClient.get('/notifications/unread-count/');
+    return response.data.count ?? 0;
+  } catch {
+    return 0;
   }
 }
 

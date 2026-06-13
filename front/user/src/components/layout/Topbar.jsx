@@ -1,14 +1,14 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   FiMenu, FiSearch, FiBell, FiUser, FiLogOut, FiChevronDown,
-  FiUsers, FiUserPlus, FiCheck, FiX, FiZap, FiTrendingUp, FiAward,
+  FiUsers, FiUserPlus, FiCheck, FiX, FiTrendingUp, FiAward,
   FiLoader,
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../AuthContext";
 import {
   getFriends, getFriendRequests, acceptFriendRequest, declineFriendRequest,
-  syncOneSignalPlayer,
+  syncOneSignalPlayer, getUnreadNotificationCount, markNotificationsRead,
 } from "../../services/api";
 import {
   dispatchInAppNotification, requestPushPermission,
@@ -16,7 +16,7 @@ import {
 } from "../../utils/webPush";
 
 /* ─── Panneau amis ────────────────────────────────────────────────── */
-function FriendsPanel({ onClose, onSectionChange, onChallengeFriend, onCountChange }) {
+function FriendsPanel({ onClose, onSectionChange, onCountChange }) {
   const [tab, setTab] = useState("requests");
   const [requests, setRequests] = useState([]);
   const [friends, setFriends] = useState([]);
@@ -48,12 +48,6 @@ function FriendsPanel({ onClose, onSectionChange, onChallengeFriend, onCountChan
       setRequests((prev) => prev.filter((r) => r.id !== id));
       onCountChange((c) => Math.max(0, c - 1));
     } catch {}
-  };
-
-  const handleChallenge = (friend) => {
-    onChallengeFriend(friend);
-    onClose();
-    dispatchInAppNotification("Défi lancé !", `Vous défiez ${friend.username}`, "challenge");
   };
 
   return (
@@ -146,11 +140,6 @@ function FriendsPanel({ onClose, onSectionChange, onChallengeFriend, onCountChan
                         </span>
                       </div>
                     </div>
-                    <motion.button whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }}
-                      onClick={() => handleChallenge(f)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg text-[10px] font-black transition shadow-lg shadow-indigo-500/20">
-                      <FiZap size={10} /> Défier
-                    </motion.button>
                   </div>
                 ))}
               </div>
@@ -173,12 +162,13 @@ function FriendsPanel({ onClose, onSectionChange, onChallengeFriend, onCountChan
 }
 
 /* ─── TopBar principal ────────────────────────────────────────────── */
-export default function TopBar({ toggleSidebar, onSectionChange, onChallengeFriend, searchQuery = "", onSearchChange }) {
+export default function TopBar({ toggleSidebar, onSectionChange, searchQuery = "", onSearchChange }) {
   const { user, logout } = useAuth();
-  const [dropdownOpen,   setDropdownOpen]   = useState(false);
-  const [friendsOpen,    setFriendsOpen]    = useState(false);
-  const [pendingCount,   setPendingCount]   = useState(0);
-  const [pushPermission, setPushPermission] = useState(getPushPermission());
+  const [dropdownOpen,    setDropdownOpen]   = useState(false);
+  const [friendsOpen,     setFriendsOpen]    = useState(false);
+  const [pendingCount,    setPendingCount]   = useState(0);
+  const [unreadNotifs,    setUnreadNotifs]   = useState(0);
+  const [pushPermission,  setPushPermission] = useState(getPushPermission());
 
   const dropdownRef = useRef(null);
   const friendsRef  = useRef(null);
@@ -189,11 +179,19 @@ export default function TopBar({ toggleSidebar, onSectionChange, onChallengeFrie
 
   const initials = displayName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 
-  /* Charge le nombre de demandes au montage */
+  /* Charge le nombre de demandes d'amis au montage */
   useEffect(() => {
     getFriendRequests()
       .then((reqs) => setPendingCount(Array.isArray(reqs) ? reqs.length : 0))
       .catch(() => {});
+  }, []);
+
+  /* Polling des notifications non lues toutes les 30s */
+  useEffect(() => {
+    const fetch = () => getUnreadNotificationCount().then(setUnreadNotifs).catch(() => {});
+    fetch();
+    const interval = setInterval(fetch, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   /* Fermeture au clic extérieur */
@@ -290,7 +288,6 @@ export default function TopBar({ toggleSidebar, onSectionChange, onChallengeFrie
             <FriendsPanel
               onClose={() => setFriendsOpen(false)}
               onSectionChange={onSectionChange}
-              onChallengeFriend={onChallengeFriend}
               onCountChange={handleCountChange}
             />
           )}
@@ -298,16 +295,32 @@ export default function TopBar({ toggleSidebar, onSectionChange, onChallengeFrie
 
         {/* Cloche notifs */}
         <button
-          onClick={pushPermission !== "granted" ? handleEnablePush : undefined}
-          title={pushPermission === "granted" ? "Notifications activées" : "Activer les notifications push"}
+          onClick={() => {
+            if (unreadNotifs > 0) {
+              markNotificationsRead();
+              setUnreadNotifs(0);
+              onSectionChange?.("amis");
+            } else if (pushPermission !== "granted") {
+              handleEnablePush();
+            }
+          }}
+          title={unreadNotifs > 0 ? `${unreadNotifs} notification(s) non lue(s)` : pushPermission === "granted" ? "Notifications activées" : "Activer les notifications push"}
           className={`p-2 sm:p-2.5 rounded-xl bg-white/5 hover:bg-white/10 transition-all relative group ${
-            pushPermission === "granted" ? "text-emerald-400" : "text-gray-400"
+            unreadNotifs > 0 ? "text-yellow-400" : pushPermission === "granted" ? "text-emerald-400" : "text-gray-400"
           }`}
         >
           <FiBell size={20} />
-          {pushPermission !== "granted" && (
+          {unreadNotifs > 0 ? (
+            <motion.span
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              className="absolute -top-1 -right-1 min-w-4 h-4 px-1 bg-yellow-500 rounded-full text-[9px] font-black text-black flex items-center justify-center border-2 border-[#030712]"
+            >
+              {unreadNotifs}
+            </motion.span>
+          ) : pushPermission !== "granted" ? (
             <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-pink-500 rounded-full border-2 border-[#030712] group-hover:scale-110 transition-transform" />
-          )}
+          ) : null}
         </button>
 
         <div className="h-8 w-px bg-white/10 mx-1 hidden md:block" />

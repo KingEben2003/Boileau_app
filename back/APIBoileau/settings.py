@@ -198,9 +198,19 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+# ── Sécurité HTTPS (activé automatiquement en production quand DEBUG=False) ──
+if not DEBUG:
+    SECURE_HSTS_SECONDS = 31536000        # 1 an
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 
 
 REST_FRAMEWORK = {
@@ -238,12 +248,15 @@ SIMPLE_JWT = {
 # GEMINI_SOURCE_MAX_CHARS : longueur max du texte source envoyé dans le prompt.
 # ── CORS ──────────────────────────────────────────────────────────────────────
 # Autorise le frontend React (port 3000) à appeler l'API Django.
+_cors_extra = [
+    o.strip() for o in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if o.strip()
+]
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:3001",
     "http://127.0.0.1:3001",
-]
+] + _cors_extra
 CORS_ALLOW_CREDENTIALS = True
 
 # ── Gemini ────────────────────────────────────────────────────────────────────

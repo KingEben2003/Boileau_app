@@ -73,7 +73,6 @@ function MainDashboard() {
   const [currentSection, setCurrentSection] = useState("upload");
   const [documents, setDocuments] = useState([]);
   const [selectedDocId, setSelectedDocId] = useState(null);
-  const [challengedFriend, setChallengedFriend] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
@@ -127,12 +126,7 @@ function MainDashboard() {
       case "progress":
         return <ProgressSection />;
       case "amis":
-        return (
-          <FriendsSection
-            challengedFriend={challengedFriend}
-            onClearChallenge={() => setChallengedFriend(null)}
-          />
-        );
+        return <FriendsSection />;
       case "culture":
         return <CultureGeneraleSection />;
       case "profil":
@@ -150,10 +144,6 @@ function MainDashboard() {
         selectedDocId={selectedDocId}
         onSelectDoc={setSelectedDocId}
         documents={filteredDocuments}
-        onChallengeFriend={(friend) => {
-          setChallengedFriend(friend);
-          handleSectionChange("amis");
-        }}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
       >
