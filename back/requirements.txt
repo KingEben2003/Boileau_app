@@ -9,4 +9,5 @@ daphne==4.2.2
 channels_redis==4.3.0
 psycopg2-binary==2.9.12
 pymysql==1.2.0
+whitenoise==6.9.0
 pypdf==6.7.2
