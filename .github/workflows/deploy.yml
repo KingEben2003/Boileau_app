@@ -28,15 +28,12 @@ on:
 # ── React ────────────────────────────────────────────────────────────────────
 #   REACT_APP_API_BASE_URL  URL de l'API (ex: https://votre-domaine.com/api)
 #
-# ── Déploiement webhook (O2Switch) ───────────────────────────────────────────
-#   DEPLOY_WEBHOOK_URL      URL du webhook PHP sur O2Switch
-#                           ex: https://votre-domaine.com/deploy/webhook.php
-#   DEPLOY_WEBHOOK_SECRET   Secret partagé pour valider l'appel webhook
-#                           (chaîne aléatoire, ex: openssl rand -hex 32)
-#
-# NOTE : SSH_HOST / SSH_USER / SSH_PRIVATE_KEY ne sont plus utilisés en CI.
-#        O2Switch bloque le port 22 depuis les IPs GitHub Actions (Azure).
-#        Le déploiement passe maintenant par un webhook HTTPS (port 443).
+# ── Déploiement O2Switch (cron) ──────────────────────────────────────────────
+# Aucun secret SSH ni webhook requis pour le déploiement.
+# O2Switch bloque le port 22 ET les requêtes HTTP automatisées (Tiger Protect)
+# depuis les IPs GitHub Actions. Solution : un cron job sur O2Switch surveille
+# la branche "deploy" toutes les minutes et se déploie lui-même.
+# Voir o2switch_setup/deploy_check.sh et les instructions dans ce dossier.
 # ─────────────────────────────────────────────────────────────────────────────
 
 jobs:
@@ -205,22 +202,9 @@ jobs:
 
           git push origin deploy --force
 
-      - name: Appeler le webhook de déploiement O2Switch
+      - name: Déploiement confirmé
         run: |
-          HTTP_STATUS=$(curl -s -o /tmp/webhook_response.txt -w "%{http_code}" \
-            --max-time 30 \
-            --insecure \
-            -X POST "${{ secrets.DEPLOY_WEBHOOK_URL }}" \
-            -H "X-Deploy-Secret: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}" \
-            -H "Content-Type: application/json")
-
-          echo "Statut HTTP : $HTTP_STATUS"
-          echo "Réponse     : $(cat /tmp/webhook_response.txt)"
-
-          if [ "$HTTP_STATUS" != "200" ]; then
-            echo "Le webhook a répondu avec une erreur ($HTTP_STATUS)."
-            echo "Vérifiez deploy.log sur O2Switch."
-            exit 1
-          fi
-
-          echo "Déploiement déclenché avec succès."
+          echo "Branche deploy mise à jour avec succès."
+          echo "Le cron job O2Switch (toutes les minutes) détectera"
+          echo "le nouveau commit et lancera le déploiement automatiquement."
+          echo "Consultez ~/deploy.log sur O2Switch pour suivre l'avancement."
