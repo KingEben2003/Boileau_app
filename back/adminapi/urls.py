@@ -35,4 +35,8 @@ urlpatterns = [
 
     # Paramètres du jeu
     path("game-settings/",                      views.AdminGameSettingsView.as_view(),           name="admin-game-settings"),
+
+    # Demandes d'activation de fonctionnalité
+    path("feature-requests/",                   views.AdminFeatureRequestsView.as_view(),        name="admin-feature-requests"),
+    path("feature-requests/<int:pk>/handle/",   views.AdminFeatureRequestHandleView.as_view(),   name="admin-feature-request-handle"),
 ]

@@ -36,11 +36,11 @@ const ResetPassword = () => {
 
     setLoading(true);
     try {
-      await axios.post("/api/reset-password/", { email, code, password });
+      await axios.post("/api/reset-password/", { email, code, password }, { withCredentials: true });
       sessionStorage.removeItem("reset_email");
       sessionStorage.removeItem("reset_code");
       setSuccess(true);
-      setTimeout(() => navigate("/login"), 3000);
+      setTimeout(() => navigate("/dashboard"), 2000);
     } catch (err) {
       setError(err?.response?.data?.error || "Une erreur est survenue. Veuillez recommencer.");
     } finally {
@@ -83,11 +83,11 @@ const ResetPassword = () => {
                 </div>
                 <h3 className="text-xl font-bold text-white mb-2">Mot de passe réinitialisé !</h3>
                 <p className="text-gray-400 text-sm leading-relaxed mb-6">
-                  Votre nouveau mot de passe est actif. Redirection vers la connexion...
+                  Votre nouveau mot de passe est actif. Connexion automatique en cours...
                 </p>
-                <Link to="/login" className="btn-primary text-sm px-6 py-2.5">
+                <Link to="/dashboard" className="btn-primary text-sm px-6 py-2.5">
                   <FiArrowLeft size={15} />
-                  Se connecter maintenant
+                  Aller au tableau de bord
                 </Link>
               </motion.div>
             ) : (

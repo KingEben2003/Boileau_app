@@ -5,6 +5,7 @@ from .views import (
     LogoutView, CookieTokenRefreshView,
     ForgotPasswordView, VerifyCodeView, ResetPasswordView,
     SyncOneSignalPlayerView, PublicConfigView,
+    SendFeatureRequestView, FeatureRequestStatusView,
 )
 
 urlpatterns = [
@@ -19,4 +20,6 @@ urlpatterns = [
     path("verify-code/", VerifyCodeView.as_view(), name="verify-code"),
     path("reset-password/", ResetPasswordView.as_view(), name="reset-password"),
     path("push/register-player/", SyncOneSignalPlayerView.as_view(), name="sync-onesignal"),
+    path("feature-request/", SendFeatureRequestView.as_view(), name="feature-request"),
+    path("feature-request/status/", FeatureRequestStatusView.as_view(), name="feature-request-status"),
 ]

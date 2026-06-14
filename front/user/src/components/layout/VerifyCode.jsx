@@ -7,7 +7,7 @@ import { fadeInUp } from "../../lib/motion";
 
 const VerifyCode = () => {
   const [code, setCode] = useState(["", "", "", "", "", ""]);
-  const [timer, setTimer] = useState(60);
+  const [timer, setTimer] = useState(30);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
@@ -84,7 +84,7 @@ const VerifyCode = () => {
     setError("");
     try {
       await axios.post("/api/forgot-password/", { email });
-      setTimer(60);
+      setTimer(30);
       setCode(["", "", "", "", "", ""]);
       inputs.current[0]?.focus();
     } catch {

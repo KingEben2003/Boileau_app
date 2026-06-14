@@ -192,4 +192,11 @@ export const uploadGameSound = ({ key, audio, label, is_active = true }) => {
 };
 export const deleteGameSound = (key) => del(`/admin/game-sounds/${key}/`);
 
+/* ════════════════════════════════════════════════════════════════════════════
+   DEMANDES DE FONCTIONNALITÉ PDF
+   ════════════════════════════════════════════════════════════════════════════ */
+export const listFeatureRequests = (params) => get("/admin/feature-requests/", params);
+export const handleFeatureRequest = (id, action, reason = "") =>
+  post(`/admin/feature-requests/${id}/handle/`, { action, reason });
+
 export default apiClient;

@@ -15,8 +15,8 @@ on:
 #   GEMINI_API_KEY          Clé API Google AI Studio
 #   GOOGLE_CLIENT_ID        Client ID OAuth Google
 #   ONESIGNAL_APP_ID        App ID OneSignal (push frontend)
-#   ONESIGNAL_REST_API_KEY  REST API Key OneSignal (push backend → challenger)
-#   REDIS_URL               URL Redis (laisser vide sur O2Switch sans Redis)
+#   ONESIGNAL_REST_API_KEY  REST API Key OneSignal (push backend)
+#   REDIS_URL               URL Redis (laisser vide si pas de Redis)
 #   EMAIL_BACKEND           django.core.mail.backends.smtp.EmailBackend
 #   EMAIL_HOST              smtp.gmail.com (ou SMTP O2Switch)
 #   EMAIL_HOST_USER         votre-email@gmail.com
@@ -25,23 +25,18 @@ on:
 #   ALLOWED_HOSTS           votre-domaine.com,www.votre-domaine.com
 #   CORS_ALLOWED_ORIGINS    https://app.votre-domaine.com,https://admin.app.votre-domaine.com
 #
-# ── Déploiement SSH — O2Switch (cPanel + Phusion Passenger) ─────────────────
-#   SSH_HOST                Serveur SSH O2Switch (ex: ssh.cluster0XX.o2switch.net)
-#   SSH_USER                Login cPanel O2Switch
-#   SSH_PRIVATE_KEY         Clé privée SSH (contenu complet avec -----BEGIN...)
-#   DEPLOY_PATH             Chemin absolu du repo sur le serveur
-#                           ex: /home/monlogin/boileau
-#   PYTHON_BIN              Chemin complet du Python dans le venv créé par cPanel
-#                           ex: /home/monlogin/virtualenv/boileau/back/3.12/bin/python
-#   FRONTEND_PATH           Dossier public du sous-domaine app (React user)
-#                           ex: /home/monlogin/app.votre-domaine.com
-#   FRONTEND_ADMIN_PATH     Dossier public du sous-domaine admin (React admin)
-#                           ex: /home/monlogin/admin.app.votre-domaine.com
-#   REACT_APP_API_BASE_URL  URL de l'API en prod (ex: https://votre-domaine.com/api)
+# ── React ────────────────────────────────────────────────────────────────────
+#   REACT_APP_API_BASE_URL  URL de l'API (ex: https://votre-domaine.com/api)
 #
-# ── Comment trouver PYTHON_BIN sur O2Switch ──────────────────────────────────
-#   cPanel → Python App Manager → votre app → "Enter to the virtual environment"
-#   Copier le chemin du venv et ajouter /bin/python
+# ── Déploiement webhook (O2Switch) ───────────────────────────────────────────
+#   DEPLOY_WEBHOOK_URL      URL du webhook PHP sur O2Switch
+#                           ex: https://votre-domaine.com/deploy/webhook.php
+#   DEPLOY_WEBHOOK_SECRET   Secret partagé pour valider l'appel webhook
+#                           (chaîne aléatoire, ex: openssl rand -hex 32)
+#
+# NOTE : SSH_HOST / SSH_USER / SSH_PRIVATE_KEY ne sont plus utilisés en CI.
+#        O2Switch bloque le port 22 depuis les IPs GitHub Actions (Azure).
+#        Le déploiement passe maintenant par un webhook HTTPS (port 443).
 # ─────────────────────────────────────────────────────────────────────────────
 
 jobs:
@@ -159,8 +154,11 @@ jobs:
           retention-days: 1
 
   # ───────────────────────────────────────────────────────────────────────────
-  # JOB 4 — Déploiement sur O2Switch (SSH)
-  # S'exécute uniquement sur push vers main/master (pas sur les PR).
+  # JOB 4 — Déploiement sur O2Switch via webhook HTTPS
+  #
+  # Pourquoi webhook ? O2Switch bloque le port 22 (SSH) depuis les IPs GitHub
+  # Actions (plage Azure). Le webhook tourne en HTTPS (port 443), non bloqué.
+  # Le serveur O2Switch tire le code et les builds lui-même (git pull HTTPS).
   # ───────────────────────────────────────────────────────────────────────────
   deploy:
     name: Déploiement O2Switch
@@ -168,86 +166,60 @@ jobs:
     needs: [test-backend, build-frontend, build-admin]
     if: github.event_name == 'push'
 
+    permissions:
+      contents: write
+
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Télécharger le build React user
         uses: actions/download-artifact@v4
         with:
           name: frontend-user-build
-          path: frontend-user-dist/
+          path: front/user/build/
 
       - name: Télécharger le build React admin
         uses: actions/download-artifact@v4
         with:
           name: frontend-admin-build
-          path: frontend-admin-dist/
+          path: front/admin/build/
 
-      - name: Copier le build React user vers app.votre-domaine.com
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "frontend-user-dist/"
-          target: "${{ secrets.FRONTEND_PATH }}"
-          strip_components: 1
+      - name: Pousser les builds sur la branche deploy
+        run: |
+          git config user.email "ci@github-actions.bot"
+          git config user.name "GitHub Actions"
 
-      - name: Copier le build React admin vers admin.app.votre-domaine.com
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "frontend-admin-dist/"
-          target: "${{ secrets.FRONTEND_ADMIN_PATH }}"
-          strip_components: 1
+          # Crée ou réinitialise la branche deploy depuis main
+          git checkout -B deploy
 
-      - name: Déployer le backend sur O2Switch
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            set -e
-            cd ${{ secrets.DEPLOY_PATH }}
+          # Force l'ajout des builds (ignorés par .gitignore en dev)
+          git add -f front/user/build/ front/admin/build/
 
-            echo "=== Pull du code ==="
-            git pull origin main
+          # Commit seulement s'il y a des changements
+          git diff --cached --quiet \
+            && echo "Builds inchangés, pas de commit." \
+            || git commit -m "ci: builds React $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 
-            echo "=== Installation des dépendances Python ==="
-            cd back
-            ${{ secrets.PYTHON_BIN }} -m pip install -r requirements.txt --quiet
+          git push origin deploy --force
 
-            echo "=== Écriture du .env de production ==="
-            cat > .env << 'ENVEOF'
-            SECRET_KEY=${{ secrets.SECRET_KEY }}
-            DEBUG=false
-            ALLOWED_HOSTS=${{ secrets.ALLOWED_HOSTS }}
-            DATABASE_URL=${{ secrets.DATABASE_URL }}
-            REDIS_URL=${{ secrets.REDIS_URL }}
-            GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
-            GEMINI_MODEL=gemini-2.5-flash
-            GEMINI_MOCK_MODE=false
-            GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
-            ONESIGNAL_APP_ID=${{ secrets.ONESIGNAL_APP_ID }}
-            ONESIGNAL_REST_API_KEY=${{ secrets.ONESIGNAL_REST_API_KEY }}
-            CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}
-            EMAIL_BACKEND=${{ secrets.EMAIL_BACKEND }}
-            EMAIL_HOST=${{ secrets.EMAIL_HOST }}
-            EMAIL_HOST_USER=${{ secrets.EMAIL_HOST_USER }}
-            EMAIL_HOST_PASSWORD=${{ secrets.EMAIL_HOST_PASSWORD }}
-            DEFAULT_FROM_EMAIL=${{ secrets.DEFAULT_FROM_EMAIL }}
-            ENVEOF
+      - name: Appeler le webhook de déploiement O2Switch
+        run: |
+          HTTP_STATUS=$(curl -s -o /tmp/webhook_response.txt -w "%{http_code}" \
+            --max-time 30 \
+            -X POST "${{ secrets.DEPLOY_WEBHOOK_URL }}" \
+            -H "X-Deploy-Secret: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}" \
+            -H "Content-Type: application/json")
 
-            echo "=== Migrations ==="
-            ${{ secrets.PYTHON_BIN }} manage.py migrate --no-input
+          echo "Statut HTTP : $HTTP_STATUS"
+          echo "Réponse     : $(cat /tmp/webhook_response.txt)"
 
-            echo "=== Fichiers statiques ==="
-            ${{ secrets.PYTHON_BIN }} manage.py collectstatic --no-input --clear
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "Le webhook a répondu avec une erreur ($HTTP_STATUS)."
+            echo "Vérifiez deploy.log sur O2Switch."
+            exit 1
+          fi
 
-            echo "=== Redémarrage Passenger ==="
-            mkdir -p tmp && touch tmp/restart.txt
-
-            echo "=== Déploiement terminé ==="
+          echo "Déploiement déclenché avec succès."

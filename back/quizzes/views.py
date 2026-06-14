@@ -22,6 +22,7 @@ Endpoints :
 
 import datetime
 
+from django.db import models
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.response import Response
@@ -42,11 +43,18 @@ class QuizListAPIView(APIView):
         
         # Si pk est fourni, retourner un quiz spécifique
         if pk:
-            quiz = get_object_or_404(
-                Quiz,
-                id=pk,
-                document__user=user,
-            )
+            from friends.models import Challenge
+            # Propriétaire du document OU participant à un défi utilisant ce quiz
+            is_owner = Quiz.objects.filter(id=pk, document__user=user).exists()
+            is_participant = Challenge.objects.filter(
+                quiz_id=pk
+            ).filter(
+                models.Q(challenger=user) | models.Q(opponent=user)
+            ).exists()
+            if not is_owner and not is_participant:
+                from django.http import Http404
+                raise Http404
+            quiz = get_object_or_404(Quiz, id=pk)
             return Response(QuizSerializer(quiz).data, status=status.HTTP_200_OK)
         
         # Sinon, lister les quiz d'un document

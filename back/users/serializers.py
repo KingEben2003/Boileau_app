@@ -16,10 +16,10 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             "id", "username", "email", "first_name", "last_name", "date_joined",
-            "is_staff", "is_superuser",
+            "is_staff", "is_superuser", "is_active", "can_challenge_with_pdf",
             "xp", "level", "current_streak", "total_quizzes", "avg_score", "badges",
         ]
-        read_only_fields = ["id", "date_joined", "is_staff", "is_superuser"]
+        read_only_fields = ["id", "date_joined", "is_staff", "is_superuser", "can_challenge_with_pdf"]
 
     def _stats(self, obj):
         try:

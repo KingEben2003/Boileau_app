@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { FiPlay, FiArrowLeft, FiCheckCircle, FiX, FiRefreshCw, FiZap, FiUsers } from "react-icons/fi";
-import { getQuizzes, getQuiz, submitQuizResult, getFriends, sendChallenge } from "../../services/api";
+import { FiPlay, FiArrowLeft, FiCheckCircle, FiX, FiRefreshCw, FiZap, FiUsers, FiFileText, FiSend, FiClock, FiAlertCircle } from "react-icons/fi";
+import { getQuizzes, getQuiz, submitQuizResult, getFriends, sendChallenge, sendFeatureRequest, getFeatureRequestStatus } from "../../services/api";
 import { popIn, staggerContainer, staggerItem, hoverLift, tap, EASE } from "../../lib/motion";
 import { useGameSounds } from "../../GameSoundContext";
 import MuteButton from "../ui/MuteButton";
@@ -26,10 +26,33 @@ export default function QuizPlayer({ documentId, onBack }) {
   const [challengeState, setChallengeState] = useState("idle"); // idle|picking|sending|sent|error
   const [friends, setFriends] = useState([]);
   const [challengeError, setChallengeError] = useState("");
+  const [featureStatus, setFeatureStatus] = useState(null); // null|"none"|"pending"|"approved"|"refused"
+  const [featureReason, setFeatureReason] = useState("");
+  const [featureSending, setFeatureSending] = useState(false);
   const { startMusic, stopMusic, playCorrect, playWrong, playWin, playLose } = useGameSounds();
 
   // Coupe la musique si on quitte le lecteur de quiz.
   useEffect(() => () => stopMusic(), [stopMusic]);
+
+  useEffect(() => {
+    getFeatureRequestStatus()
+      .then((d) => { setFeatureStatus(d.status); setFeatureReason(d.reason || ""); })
+      .catch(() => {});
+  }, []);
+
+  const handleSendFeatureRequest = async () => {
+    setFeatureSending(true);
+    try {
+      await sendFeatureRequest();
+      setFeatureStatus("pending");
+    } catch (err) {
+      if (err.message?.includes("pending") || err.message?.includes("déjà")) {
+        setFeatureStatus("pending");
+      }
+    } finally {
+      setFeatureSending(false);
+    }
+  };
 
   const loadQuizzes = useCallback(async () => {
     setLoading(true);
@@ -562,6 +585,133 @@ export default function QuizPlayer({ documentId, onBack }) {
           </motion.div>
         ))}
       </motion.div>
+
+      {/* ── Bannière Défi PDF ─────────────────────────────────────────── */}
+      <PdfChallengeBanner
+        status={featureStatus}
+        reason={featureReason}
+        sending={featureSending}
+        onRequest={handleSendFeatureRequest}
+      />
     </div>
+  );
+}
+
+function PdfChallengeBanner({ status, reason, sending, onRequest }) {
+  if (status === null) return null;
+
+  if (status === "approved") {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mt-8 glass-panel rounded-3xl p-5 sm:p-6 border border-emerald-500/30"
+      >
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+            <FiFileText className="text-emerald-400" size={20} />
+          </div>
+          <div>
+            <p className="font-bold text-white text-sm">Défi PDF activé</p>
+            <p className="text-xs text-emerald-400">Fonctionnalité disponible dans la section Amis &amp; Défis</p>
+          </div>
+        </div>
+        <p className="text-xs text-gray-400">
+          Rendez-vous dans <span className="text-white font-semibold">Amis &amp; Défis</span> pour lancer un défi basé sur l'un de vos cours PDF.
+          L'IA génèrera les questions et votre ami jouera le même quiz que vous.
+        </p>
+      </motion.div>
+    );
+  }
+
+  if (status === "pending") {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mt-8 glass-panel rounded-3xl p-5 sm:p-6 border border-yellow-500/30"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-yellow-500/20 flex items-center justify-center flex-shrink-0">
+            <FiClock className="text-yellow-400" size={20} />
+          </div>
+          <div>
+            <p className="font-bold text-white text-sm">Demande en cours de traitement</p>
+            <p className="text-xs text-yellow-400">Vous recevrez une notification dès que l'admin aura répondu.</p>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
+  if (status === "refused") {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mt-8 glass-panel rounded-3xl p-5 sm:p-6 border border-red-500/30"
+      >
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center flex-shrink-0">
+            <FiAlertCircle className="text-red-400" size={20} />
+          </div>
+          <div>
+            <p className="font-bold text-white text-sm">Demande refusée</p>
+            <p className="text-xs text-red-400">Votre demande d'activation n'a pas été approuvée.</p>
+          </div>
+        </div>
+        {reason && (
+          <p className="text-xs text-gray-400 mt-2 p-3 bg-white/5 rounded-xl border border-white/10">
+            <span className="text-gray-300 font-semibold">Raison&nbsp;: </span>{reason}
+          </p>
+        )}
+      </motion.div>
+    );
+  }
+
+  // status === "none" → montrer la bannière promo
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="mt-8 glass-panel rounded-3xl p-5 sm:p-6 border border-purple-500/20"
+    >
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500/30 to-pink-500/30 flex items-center justify-center flex-shrink-0">
+          <FiFileText className="text-purple-300" size={20} />
+        </div>
+        <p className="font-bold text-white">Défi Quiz depuis vos PDF</p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+        {[
+          { icon: FiFileText, color: "purple", title: "Cours personnalisé", desc: "Sélectionnez ou téléversez votre PDF de cours pour créer un quiz unique." },
+          { icon: FiZap, color: "pink", title: "Quiz généré par l'IA", desc: "L'IA analyse votre cours et génère automatiquement des questions pertinentes." },
+          { icon: FiUsers, color: "indigo", title: "Défi comparatif", desc: "Jouez en premier, puis votre ami répond aux mêmes questions. Comparez vos scores." },
+        ].map(({ icon: Icon, color, title, desc }) => (
+          <div key={title} className={`p-3 rounded-2xl bg-${color}-500/10 border border-${color}-500/20`}>
+            <div className={`w-7 h-7 rounded-lg bg-${color}-500/20 flex items-center justify-center mb-2`}>
+              <Icon className={`text-${color}-400`} size={14} />
+            </div>
+            <p className="text-xs font-bold text-white mb-1">{title}</p>
+            <p className="text-[11px] text-gray-400 leading-relaxed">{desc}</p>
+          </div>
+        ))}
+      </div>
+
+      <motion.button
+        {...tap}
+        onClick={onRequest}
+        disabled={sending}
+        className="w-full btn-primary bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 justify-center"
+      >
+        {sending ? (
+          <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+        ) : (
+          <FiSend size={15} />
+        )}
+        {sending ? "Envoi en cours…" : "Demander l'activation"}
+      </motion.button>
+    </motion.div>
   );
 }

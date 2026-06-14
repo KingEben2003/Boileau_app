@@ -4,11 +4,14 @@ import {
   FiUsers, FiUserPlus, FiMail, FiHash, FiSend, FiX,
   FiZap, FiCheck, FiTrendingUp, FiAward, FiArrowLeft,
   FiStar, FiCheckCircle, FiAlertCircle, FiClock, FiPlay,
+  FiFileText, FiUpload, FiRefreshCw,
 } from "react-icons/fi";
 import {
   getFriends, getFriendRequests, acceptFriendRequest, declineFriendRequest,
   sendFriendRequest, getGameSettings, getGameQuestions,
   getChallenges, acceptChallenge, refuseChallenge, submitChallengeAnswers, getQuiz,
+  getFeatureRequestStatus, getDocuments, uploadDocument,
+  generateQuizForChallenge, sendPdfChallenge,
 } from "../../services/api";
 import { useGameSounds } from "../../GameSoundContext";
 import MuteButton from "../ui/MuteButton";
@@ -529,13 +532,329 @@ function ChallengeReport({ challenge, onBack, onLoadQuiz }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
+   DÉFI PDF — FLUX MULTI-ÉTAPES
+   ═══════════════════════════════════════════════════════════════════ */
+function PdfChallengeFlow({ friends, onBack }) {
+  const { startMusic, stopMusic, playCorrect, playWrong, playWin, playLose } = useGameSounds();
+  // step: "select-doc" | "generating" | "pick-friend" | "playing" | "sending" | "sent"
+  const [step, setStep] = useState("select-doc");
+  const [documents, setDocuments] = useState([]);
+  const [docsLoading, setDocsLoading] = useState(true);
+  const [docsError, setDocsError] = useState("");
+  const [selectedDoc, setSelectedDoc] = useState(null);
+  const [uploadFile, setUploadFile] = useState(null);
+  const [quiz, setQuiz] = useState(null);
+  const [genError, setGenError] = useState("");
+  const [selectedFriend, setSelectedFriend] = useState(null);
+  // quiz playing
+  const [questionIndex, setQuestionIndex] = useState(0);
+  const [answers, setAnswers] = useState({});
+  const [lockedAnswer, setLockedAnswer] = useState(null);
+  const [startTime, setStartTime] = useState(null);
+  const [sendError, setSendError] = useState("");
+
+  const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    getDocuments()
+      .then((d) => setDocuments(Array.isArray(d) ? d : []))
+      .catch((e) => setDocsError(e.message || "Impossible de charger les documents."))
+      .finally(() => setDocsLoading(false));
+  }, []);
+
+  useEffect(() => { if (step !== "playing") stopMusic(); }, [step, stopMusic]);
+  useEffect(() => { setLockedAnswer(null); }, [questionIndex]);
+
+  const handleGenerate = async (doc) => {
+    setSelectedDoc(doc);
+    setGenError("");
+    setStep("generating");
+    try {
+      const generated = await generateQuizForChallenge(doc.id);
+      setQuiz(generated);
+      setStep("pick-friend");
+    } catch (e) {
+      setGenError(e.message || "Impossible de générer le quiz.");
+      setStep("select-doc");
+    }
+  };
+
+  const handleUploadAndGenerate = async () => {
+    if (!uploadFile) return;
+    setGenError("");
+    setStep("generating");
+    try {
+      const uploaded = await uploadDocument(uploadFile);
+      const generated = await generateQuizForChallenge(uploaded.id);
+      setSelectedDoc(uploaded);
+      setQuiz(generated);
+      setStep("pick-friend");
+    } catch (e) {
+      setGenError(e.message || "Erreur lors de l'upload ou de la génération.");
+      setStep("select-doc");
+    }
+  };
+
+  const startPlaying = (friend) => {
+    setSelectedFriend(friend);
+    setAnswers({});
+    setQuestionIndex(0);
+    setLockedAnswer(null);
+    setStartTime(Date.now());
+    startMusic();
+    setStep("playing");
+  };
+
+  const handleAnswer = (qId, answer) => {
+    if (lockedAnswer !== null) return;
+    const newAnswers = { ...answers, [qId]: answer };
+    setAnswers(newAnswers);
+    setLockedAnswer(answer);
+
+    const q = quiz.questions.find((x) => x.id === qId);
+    const isCorrect = q && answer.toLowerCase() === (q.correct_answer || "").toLowerCase();
+    if (isCorrect) playCorrect(); else setTimeout(() => playWrong(), 250);
+
+    const isLast = questionIndex === quiz.questions.length - 1;
+    setTimeout(async () => {
+      if (isLast) {
+        stopMusic();
+        const timeSpent = Math.round((Date.now() - startTime) / 1000);
+        const correct = quiz.questions.filter(
+          (q) => newAnswers[q.id]?.toLowerCase() === q.correct_answer?.toLowerCase()
+        ).length;
+        const score = Math.round((correct / quiz.questions.length) * 100);
+        if (score >= 50) playWin(); else playLose();
+        setStep("sending");
+        setSendError("");
+        try {
+          await sendPdfChallenge(selectedFriend.id, quiz.id, {
+            score,
+            answersDetail: newAnswers,
+            timeSpentSeconds: timeSpent,
+          });
+          setStep("sent");
+        } catch (e) {
+          setSendError(e.message || "Erreur lors de l'envoi du défi.");
+          setStep("playing");
+        }
+      } else {
+        setQuestionIndex((prev) => prev + 1);
+        setLockedAnswer(null);
+      }
+    }, isCorrect ? 1100 : 1900);
+  };
+
+  /* ── Écrans ── */
+  if (step === "sent") {
+    return (
+      <motion.div {...popIn} className="glass-panel rounded-3xl p-6 sm:p-8 text-center">
+        <div className="w-16 h-16 mx-auto rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center mb-4">
+          <FiCheckCircle size={28} className="text-emerald-400" />
+        </div>
+        <h3 className="text-xl font-black text-white mb-2">Défi envoyé !</h3>
+        <p className="text-gray-400 text-sm mb-6">
+          <span className="text-white font-semibold">{selectedFriend?.username}</span> recevra une notification pour jouer le même quiz.
+        </p>
+        <button onClick={onBack} className="btn-secondary w-full"><FiArrowLeft size={15} /> Retour</button>
+      </motion.div>
+    );
+  }
+
+  if (step === "sending") {
+    return (
+      <div className="glass-panel rounded-3xl p-8 text-center">
+        <div className="animate-spin w-10 h-10 border-2 border-purple-500/30 border-t-purple-500 rounded-full mx-auto mb-4" />
+        <p className="text-gray-400 text-sm">Envoi du défi…</p>
+      </div>
+    );
+  }
+
+  if (step === "playing" && quiz) {
+    const q = quiz.questions[questionIndex];
+    const progress = ((questionIndex + 1) / quiz.questions.length) * 100;
+    const isLocked = lockedAnswer !== null;
+
+    const renderOption = (option, idx) => {
+      const selected = answers[q.id] === option;
+      const isCorrectOpt = isLocked && option.toLowerCase() === (q.correct_answer || "").toLowerCase();
+      const isWrong = isLocked && selected && !isCorrectOpt;
+      return (
+        <label key={idx}
+          className={`glass-card flex items-center gap-3 p-4 rounded-2xl select-none transition-colors ${isLocked ? "cursor-default" : "cursor-pointer"} ${
+            isCorrectOpt ? "!bg-green-500/15 !border-green-500/50 ring-1 ring-green-500/40"
+            : isWrong ? "!bg-red-500/15 !border-red-500/50 ring-1 ring-red-500/40"
+            : selected ? "!bg-pink-500/15 !border-pink-500/50 ring-1 ring-pink-500/40" : ""
+          }`}
+        >
+          <input type="radio" name={`pq-${q.id}`} value={option} checked={selected}
+            onChange={isLocked ? undefined : (e) => handleAnswer(q.id, e.target.value)}
+            disabled={isLocked} className="w-5 h-5 accent-pink-500 flex-shrink-0" />
+          <span className="text-sm text-white break-words flex-1">{option}</span>
+          {isCorrectOpt && <FiCheckCircle className="flex-shrink-0 text-green-400" size={16} />}
+          {isWrong && <FiX className="flex-shrink-0 text-red-400" size={16} />}
+        </label>
+      );
+    };
+
+    return (
+      <div className="w-full max-w-2xl mx-auto">
+        <div className="flex items-center justify-between mb-6">
+          <button onClick={() => { stopMusic(); setStep("pick-friend"); }} className="btn-ghost -ml-2">
+            <FiArrowLeft size={20} /> Annuler
+          </button>
+          <MuteButton />
+        </div>
+        <div className="glass-panel rounded-3xl p-5 sm:p-8">
+          <p className="text-xs text-gray-500 mb-1">Défi PDF vs {selectedFriend?.username}</p>
+          <div className="mb-6">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm text-gray-400">Q{questionIndex + 1}/{quiz.questions.length}</span>
+              <span className="text-sm font-bold text-pink-400">{Math.round(progress)}%</span>
+            </div>
+            <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+              <motion.div className="h-full bg-gradient-to-r from-pink-500 to-purple-500"
+                initial={false} animate={{ width: `${progress}%` }} transition={{ duration: 0.4 }} />
+            </div>
+          </div>
+          <AnimatePresence mode="wait">
+            <motion.div key={questionIndex} initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.28 }}>
+              <h3 className="text-lg font-bold text-white mb-6 break-words">{q.question_text}</h3>
+              <div className="space-y-3">
+                {(q.type === "true_false" || quiz.type === "true_false")
+                  ? ["Vrai", "Faux"].map((opt, i) => renderOption(opt, i))
+                  : (q.options || []).map((opt, i) => renderOption(opt, i))}
+              </div>
+            </motion.div>
+          </AnimatePresence>
+          {sendError && <p className="text-xs text-red-400 mt-4">{sendError}</p>}
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "pick-friend") {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 mb-2">
+          <button onClick={onBack} className="btn-ghost -ml-2"><FiArrowLeft size={20} /></button>
+          <h3 className="text-lg font-black text-white">Choisir un ami à défier</h3>
+        </div>
+        <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-2xl text-xs text-gray-400">
+          Quiz généré depuis <span className="text-white font-semibold">{selectedDoc?.title || selectedDoc?.file_name || "votre PDF"}</span> · {quiz?.questions?.length} questions
+        </div>
+        {friends.length === 0 ? (
+          <div className="text-center py-10 text-gray-500">
+            <FiUsers size={28} className="mx-auto mb-3 text-gray-600" />
+            <p className="text-sm">Aucun ami disponible. Ajoutez des amis d'abord.</p>
+            <button onClick={onBack} className="btn-secondary mt-4"><FiArrowLeft size={15} /> Retour</button>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {friends.map((f) => (
+              <motion.div key={f.id} {...hoverLift}
+                className="glass-card rounded-2xl p-4 border border-white/10 hover:border-purple-500/30 flex items-center gap-3 cursor-pointer"
+                onClick={() => startPlaying(f)}
+              >
+                <LetterAvatar username={f.username} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-white truncate">{f.username}</p>
+                  <p className="text-[10px] text-gray-500">Niv.{f.level ?? 1} · {Math.round(f.score ?? 0)}%</p>
+                </div>
+                <motion.button {...tap}
+                  className="btn-primary px-4 py-2 text-xs bg-gradient-to-r from-purple-600 to-pink-600 flex-shrink-0">
+                  <FiZap size={12} /> Défier
+                </motion.button>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (step === "generating") {
+    return (
+      <div className="glass-panel rounded-3xl p-8 text-center">
+        <div className="animate-spin w-10 h-10 border-2 border-purple-500/30 border-t-purple-500 rounded-full mx-auto mb-4" />
+        <p className="text-gray-400 text-sm">Génération du quiz par l'IA…</p>
+        {genError && <p className="text-xs text-red-400 mt-3">{genError}</p>}
+      </div>
+    );
+  }
+
+  // step === "select-doc"
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center gap-3">
+        <button onClick={onBack} className="btn-ghost -ml-2"><FiArrowLeft size={20} /></button>
+        <h3 className="text-lg font-black text-white">Sélectionner un cours PDF</h3>
+      </div>
+
+      {genError && (
+        <div className="p-3 bg-red-500/15 border border-red-500/30 rounded-xl text-red-300 text-xs">{genError}</div>
+      )}
+
+      {docsError && <p className="text-xs text-red-400">{docsError}</p>}
+
+      {docsLoading ? (
+        <p className="text-gray-400 italic text-sm">Chargement de vos documents…</p>
+      ) : documents.length > 0 ? (
+        <>
+          <p className="text-xs font-bold uppercase tracking-widest text-gray-500">Vos cours importés</p>
+          <div className="space-y-2">
+            {documents.map((doc) => (
+              <motion.div key={doc.id} {...hoverLift}
+                className="glass-card rounded-2xl p-4 border border-white/10 hover:border-purple-500/30 flex items-center gap-3 cursor-pointer"
+                onClick={() => handleGenerate(doc)}
+              >
+                <div className="w-10 h-10 rounded-xl bg-purple-500/15 flex items-center justify-center flex-shrink-0">
+                  <FiFileText className="text-purple-400" size={18} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-white truncate">{doc.title || doc.file_name || "Document"}</p>
+                  <p className="text-[10px] text-gray-500">{doc.page_count ? `${doc.page_count} pages` : "PDF"}</p>
+                </div>
+                <FiZap size={14} className="text-purple-400 flex-shrink-0" />
+              </motion.div>
+            ))}
+          </div>
+        </>
+      ) : null}
+
+      {/* Upload nouveau PDF */}
+      <div className="p-4 glass-card rounded-2xl border border-dashed border-white/20">
+        <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3">Téléverser un nouveau PDF</p>
+        <div className="flex gap-2">
+          <input ref={fileInputRef} type="file" accept=".pdf" className="hidden"
+            onChange={(e) => setUploadFile(e.target.files[0] || null)} />
+          <button onClick={() => fileInputRef.current?.click()}
+            className="flex-1 flex items-center gap-2 px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm text-gray-300 transition">
+            <FiUpload size={16} />
+            {uploadFile ? uploadFile.name : "Choisir un fichier PDF…"}
+          </button>
+          {uploadFile && (
+            <motion.button {...tap} onClick={handleUploadAndGenerate}
+              className="btn-primary px-4 bg-gradient-to-r from-purple-600 to-pink-600 flex-shrink-0">
+              <FiZap size={14} /> Générer
+            </motion.button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
    SECTION PRINCIPALE
    ═══════════════════════════════════════════════════════════════════ */
 export default function FriendsSection() {
-  const [phase, setPhase] = useState("list"); // list | setup-solo | solo | challenge-quiz | challenge-report
+  const [phase, setPhase] = useState("list"); // list | setup-solo | solo | challenge-quiz | challenge-report | pdf-challenge
   const [settings, setSettings] = useState({ countdown_seconds: 30 });
   const [soloConfig, setSoloConfig] = useState(null);
   const [activeChallenge, setActiveChallenge] = useState(null);
+  const [featureStatus, setFeatureStatus] = useState(null);
 
   const [friends, setFriends] = useState([]);
   const [requests, setRequests] = useState([]);
@@ -568,6 +887,12 @@ export default function FriendsSection() {
     pollRef.current = setInterval(loadAll, 15000);
     return () => clearInterval(pollRef.current);
   }, [loadAll]);
+
+  useEffect(() => {
+    getFeatureRequestStatus()
+      .then((d) => setFeatureStatus(d.status))
+      .catch(() => {});
+  }, []);
 
   const acceptRequest = async (id) => {
     const req = requests.find((r) => r.id === id);
@@ -639,6 +964,13 @@ export default function FriendsSection() {
       </div>
     );
 
+  if (phase === "pdf-challenge")
+    return (
+      <div className="w-full max-w-xl mx-auto pb-10">
+        <PdfChallengeFlow friends={friends} onBack={backToList} />
+      </div>
+    );
+
   if (phase === "challenge-quiz" && activeChallenge)
     return (
       <div className="w-full pb-10">
@@ -687,6 +1019,23 @@ export default function FriendsSection() {
           Pour défier un ami, jouez un quiz depuis la section <strong className="text-white">Documents</strong>, puis cliquez sur <strong className="text-white">Défier un ami</strong> sur la page de résultats.
         </p>
       </motion.div>
+
+      {/* Défi PDF (si activé) */}
+      {featureStatus === "approved" && (
+        <motion.div variants={staggerItem} {...hoverLift} className="glass-card rounded-2xl p-4 sm:p-5 border border-purple-500/20 flex items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center flex-shrink-0">
+            <FiFileText size={22} className="text-purple-300" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-fluid-base font-black text-white">Défi depuis un PDF</p>
+            <p className="text-fluid-sm text-gray-500">L'IA génère un quiz depuis votre cours et vous défiez un ami</p>
+          </div>
+          <motion.button {...tap} onClick={() => setPhase("pdf-challenge")}
+            className="btn-primary px-4 py-2.5 text-xs bg-gradient-to-r from-purple-600 to-pink-600 flex-shrink-0">
+            <FiZap size={13} /> Lancer
+          </motion.button>
+        </motion.div>
+      )}
 
       {/* Défis reçus en attente */}
       {pendingReceived.length > 0 && (

@@ -502,3 +502,52 @@ export async function getCultureLeaderboard(themeKey) {
     throw toApiError(error);
   }
 }
+
+/* ─── Demande d'activation fonctionnalité PDF ─────────────────────── */
+export async function sendFeatureRequest() {
+  try {
+    const response = await apiClient.post('/feature-request/');
+    return response.data;
+  } catch (error) {
+    throw toApiError(error);
+  }
+}
+
+export async function getFeatureRequestStatus() {
+  try {
+    const response = await apiClient.get('/feature-request/status/');
+    return response.data;
+  } catch (error) {
+    throw toApiError(error);
+  }
+}
+
+/* ─── Défi PDF ────────────────────────────────────────────────────── */
+export async function generateQuizForChallenge(documentId, { type = 'qcm', difficulty = 'medium', numberOfQuestions = 10 } = {}) {
+  try {
+    const response = await apiClient.post('/quizzes/generate/', {
+      document_id: documentId,
+      type,
+      difficulty,
+      number_of_questions: numberOfQuestions,
+    });
+    return response.data;
+  } catch (error) {
+    throw toApiError(error);
+  }
+}
+
+export async function sendPdfChallenge(friendId, quizId, { score, answersDetail, timeSpentSeconds } = {}) {
+  try {
+    const response = await apiClient.post('/challenges/send/', {
+      opponent_id: friendId,
+      quiz_id: quizId,
+      score,
+      answers_detail: answersDetail,
+      time_spent_seconds: timeSpentSeconds,
+    });
+    return response.data;
+  } catch (error) {
+    throw toApiError(error);
+  }
+}

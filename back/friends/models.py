@@ -70,6 +70,9 @@ class Notification(models.Model):
         ("challenge_received", "Défi reçu"),
         ("challenge_refused", "Défi refusé"),
         ("challenge_result", "Résultat de défi"),
+        ("feature_request", "Demande de fonctionnalité"),
+        ("feature_approved", "Fonctionnalité activée"),
+        ("feature_refused", "Fonctionnalité refusée"),
     ]
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notifications"

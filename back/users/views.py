@@ -1,3 +1,4 @@
+import os
 import random
 import string
 from datetime import timedelta
@@ -14,6 +15,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from .models import FeatureRequest
 from .serializers import RegisterSerializer, UserSerializer
 
 User = get_user_model()
@@ -286,7 +288,10 @@ class ResetPasswordView(APIView):
         user.reset_code_expires_at = None
         user.save(update_fields=["password", "reset_code", "reset_code_expires_at"])
 
-        return Response({"message": "Mot de passe réinitialisé avec succès"})
+        refresh = RefreshToken.for_user(user)
+        response = Response({"message": "Mot de passe réinitialisé avec succès", "user": UserSerializer(user).data})
+        _set_auth_cookies(response, refresh, remember_me=True)
+        return response
 
 
 class SyncOneSignalPlayerView(APIView):
@@ -309,3 +314,87 @@ class PublicConfigView(APIView):
             "google_client_id": settings.GOOGLE_CLIENT_ID,
             "onesignal_app_id": settings.ONESIGNAL_APP_ID,
         })
+
+
+def _notify_admins_feature_request(user):
+    """Notifie tous les admins par email et OneSignal d'une nouvelle demande de fonctionnalité."""
+    admins = User.objects.filter(is_staff=True, is_active=True)
+    admin_emails = list(admins.values_list("email", flat=True))
+
+    if admin_emails:
+        send_mail(
+            subject="[Boileau] Nouvelle demande d'activation — Défi depuis PDF",
+            message=(
+                f"L'utilisateur {user.get_full_name() or user.username} ({user.email}) "
+                "a soumis une demande d'activation de la fonctionnalité "
+                "\"Défi depuis un cours PDF\".\n\n"
+                "Connectez-vous à l'interface d'administration pour accepter ou refuser."
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=admin_emails,
+            fail_silently=True,
+        )
+
+    admin_player_ids = list(
+        admins.exclude(onesignal_player_id__isnull=True)
+        .exclude(onesignal_player_id="")
+        .values_list("onesignal_player_id", flat=True)
+    )
+    if admin_player_ids:
+        try:
+            http_requests.post(
+                "https://onesignal.com/api/v1/notifications",
+                headers={
+                    "Authorization": f"Basic {os.getenv('ONESIGNAL_REST_API_KEY', '')}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "app_id": settings.ONESIGNAL_APP_ID,
+                    "include_player_ids": admin_player_ids,
+                    "headings": {"fr": "Nouvelle demande"},
+                    "contents": {"fr": f"{user.get_full_name() or user.username} demande l'activation du défi PDF"},
+                },
+                timeout=5,
+            )
+        except Exception:
+            pass
+
+
+class SendFeatureRequestView(APIView):
+    def post(self, request):
+        user = request.user
+
+        existing = FeatureRequest.objects.filter(user=user, status="pending").first()
+        if existing:
+            return Response({"status": "pending"}, status=status.HTTP_200_OK)
+
+        if user.can_challenge_with_pdf:
+            return Response({"status": "approved"}, status=status.HTTP_200_OK)
+
+        FeatureRequest.objects.create(user=user)
+        _notify_admins_feature_request(user)
+
+        from friends.models import Notification as UserNotification
+        from django.contrib.auth import get_user_model as _get
+        for admin in _get().objects.filter(is_staff=True, is_active=True):
+            UserNotification.objects.create(
+                user=admin,
+                type="feature_request",
+                message=f"{user.get_full_name() or user.username} demande l'activation du défi depuis PDF.",
+            )
+
+        return Response({"status": "pending"}, status=status.HTTP_201_CREATED)
+
+
+class FeatureRequestStatusView(APIView):
+    def get(self, request):
+        user = request.user
+        if user.can_challenge_with_pdf:
+            return Response({"status": "approved"})
+        req = FeatureRequest.objects.filter(user=user).order_by("-created_at").first()
+        if not req:
+            return Response({"status": "none"})
+        data = {"status": req.status}
+        if req.status == "refused" and req.admin_reason:
+            data["reason"] = req.admin_reason
+        return Response(data)

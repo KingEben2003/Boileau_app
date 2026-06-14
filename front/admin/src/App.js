@@ -16,6 +16,7 @@ const Friends = lazy(() => import("./pages/Friends"));
 const SRS = lazy(() => import("./pages/SRS"));
 const GameSounds = lazy(() => import("./pages/GameSounds"));
 const GameSettings = lazy(() => import("./pages/GameSettings"));
+const FeatureRequests = lazy(() => import("./pages/FeatureRequests"));
 
 const FullLoader = () => (
   <div className="min-h-[100dvh] flex items-center justify-center bg-ink-900">
@@ -52,6 +53,7 @@ function AppRoutes() {
         <Route path="srs" element={<Suspense fallback={<div className="py-20 flex justify-center"><Spinner /></div>}><SRS /></Suspense>} />
         <Route path="game-sounds" element={<Suspense fallback={<div className="py-20 flex justify-center"><Spinner /></div>}><GameSounds /></Suspense>} />
         <Route path="game-settings" element={<Suspense fallback={<div className="py-20 flex justify-center"><Spinner /></div>}><GameSettings /></Suspense>} />
+        <Route path="feature-requests" element={<Suspense fallback={<div className="py-20 flex justify-center"><Spinner /></div>}><FeatureRequests /></Suspense>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -18,7 +18,8 @@ from rest_framework.views import APIView
 
 from culture.models import CultureQuestion
 from documents.models import Document
-from friends.models import FriendRequest
+from friends.models import FriendRequest, Notification as UserNotification
+from users.models import FeatureRequest
 from gamesounds.models import GameSound
 from gamesounds.serializers import GameSoundSerializer
 from gamesounds.validators import audio_validation_error
@@ -378,3 +379,73 @@ class AdminGameSettingsView(APIView):
             ser.save()
             return Response(ser.data)
         return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Demandes d'activation — GET /api/admin/feature-requests/
+#                         POST /api/admin/feature-requests/:id/handle/
+# ═══════════════════════════════════════════════════════════════════════════════
+class AdminFeatureRequestsView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        qs = FeatureRequest.objects.select_related("user").order_by("-created_at")
+        status_filter = request.query_params.get("status")
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+        data = [
+            {
+                "id": r.id,
+                "user": {"id": r.user.id, "email": r.user.email, "username": r.user.username,
+                         "full_name": r.user.get_full_name()},
+                "status": r.status,
+                "admin_reason": r.admin_reason,
+                "created_at": r.created_at,
+                "updated_at": r.updated_at,
+            }
+            for r in qs
+        ]
+        return Response(data)
+
+
+class AdminFeatureRequestHandleView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, pk):
+        try:
+            req = FeatureRequest.objects.select_related("user").get(pk=pk)
+        except FeatureRequest.DoesNotExist:
+            return Response({"detail": "Demande introuvable."}, status=status.HTTP_404_NOT_FOUND)
+
+        action = request.data.get("action")  # "approve" ou "refuse"
+        reason = request.data.get("reason", "").strip()
+
+        if action not in ("approve", "refuse"):
+            return Response({"detail": "action doit être 'approve' ou 'refuse'."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = req.user
+
+        if action == "approve":
+            req.status = "approved"
+            req.admin_reason = ""
+            req.save(update_fields=["status", "admin_reason", "updated_at"])
+            user.can_challenge_with_pdf = True
+            user.save(update_fields=["can_challenge_with_pdf"])
+            UserNotification.objects.create(
+                user=user,
+                type="feature_approved",
+                message="Votre demande d'activation du défi depuis PDF a été acceptée. La fonctionnalité est maintenant disponible !",
+            )
+        else:
+            if not reason:
+                return Response({"detail": "La raison du refus est requise."}, status=status.HTTP_400_BAD_REQUEST)
+            req.status = "refused"
+            req.admin_reason = reason
+            req.save(update_fields=["status", "admin_reason", "updated_at"])
+            UserNotification.objects.create(
+                user=user,
+                type="feature_refused",
+                message=f"Votre demande a été refusée. Raison : {reason}",
+            )
+
+        return Response({"status": req.status})
