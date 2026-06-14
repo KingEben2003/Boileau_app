@@ -7,8 +7,10 @@
 # ─────────────────────────────────────────────────────────────────
 DEPLOY_PATH="/home/VOTRE_USER/boileau"
 PYTHON_BIN="/home/VOTRE_USER/virtualenv/boileau/back/3.12/bin/python"
-FRONTEND_PATH="/home/VOTRE_USER/app.votre-domaine.com"
-FRONTEND_ADMIN_PATH="/home/VOTRE_USER/admin.app.votre-domaine.com"
+# Les React builds sont servis directement depuis :
+#   front/user/build/  → document root de boileau.sc1zds18.universe.wf
+#   front/admin/build/ → document root de admin.boileau.sc1zds18.universe.wf
+# Configurer ces chemins dans cPanel → Subdomains
 # ─────────────────────────────────────────────────────────────────
 
 set -e
@@ -26,35 +28,26 @@ git checkout -B deploy origin/deploy
 git pull origin deploy --force
 echo "OK"
 
-# ── 2. Déployer React user ──────────────────────────────────────────────────
-echo ""
-echo "=== [2/6] Déploiement React user → $FRONTEND_PATH ==="
-rsync -av --delete front/user/build/ "$FRONTEND_PATH/"
-echo "OK"
+# Les builds React sont dans le repo (branche deploy) — cPanel sert
+# front/user/build/ et front/admin/build/ directement. Pas de rsync.
 
-# ── 3. Déployer React admin ─────────────────────────────────────────────────
+# ── 2. Dépendances Python ───────────────────────────────────────────────────
 echo ""
-echo "=== [3/6] Déploiement React admin → $FRONTEND_ADMIN_PATH ==="
-rsync -av --delete front/admin/build/ "$FRONTEND_ADMIN_PATH/"
-echo "OK"
-
-# ── 4. Dépendances Python ───────────────────────────────────────────────────
-echo ""
-echo "=== [4/6] Installation des dépendances Python ==="
+echo "=== [2/4] Installation des dépendances Python ==="
 cd "$DEPLOY_PATH/back"
 "$PYTHON_BIN" -m pip install -r requirements.txt --quiet
 echo "OK"
 
-# ── 5. Migrations & fichiers statiques ──────────────────────────────────────
+# ── 3. Migrations & fichiers statiques ──────────────────────────────────────
 echo ""
-echo "=== [5/6] Migrations + collectstatic ==="
+echo "=== [3/4] Migrations + collectstatic ==="
 "$PYTHON_BIN" manage.py migrate --no-input
 "$PYTHON_BIN" manage.py collectstatic --no-input --clear
 echo "OK"
 
-# ── 6. Redémarrage Passenger ────────────────────────────────────────────────
+# ── 4. Redémarrage Passenger ────────────────────────────────────────────────
 echo ""
-echo "=== [6/6] Redémarrage Phusion Passenger ==="
+echo "=== [4/4] Redémarrage Phusion Passenger ==="
 mkdir -p tmp && touch tmp/restart.txt
 echo "OK"
 
