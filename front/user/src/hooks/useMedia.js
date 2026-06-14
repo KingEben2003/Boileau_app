@@ -22,7 +22,6 @@ export function useMedia(query) {
 
 /** Raccourcis sémantiques (breakpoints alignés sur tailwind.config.js). */
 export const useIsDesktop = () => useMedia("(min-width: 768px)");
-export const useIsMobile = () => !useMedia("(min-width: 768px)");
 
 /** true si l'utilisateur préfère réduire les animations. */
 export const usePrefersReducedMotion = () =>

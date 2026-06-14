@@ -43,12 +43,6 @@ from .serializers import (
 User = get_user_model()
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
-def _paginate(request, qs, serializer_class):
-    """Renvoie un tableau brut (pas de pagination serveur — le front filtre côté client)."""
-    return Response(serializer_class(qs, many=True).data)
-
-
 # ═══════════════════════════════════════════════════════════════════════════════
 # GET /api/admin/stats/
 # ═══════════════════════════════════════════════════════════════════════════════

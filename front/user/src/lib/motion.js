@@ -2,7 +2,6 @@
 // Respecte automatiquement prefers-reduced-motion via la prop `transition`.
 
 export const EASE = [0.4, 0, 0.2, 1];
-export const EASE_SPRING = { type: "spring", stiffness: 300, damping: 30 };
 
 // Apparition simple (vers le haut)
 export const fadeInUp = {

@@ -53,8 +53,8 @@ const FEATURES = [
   },
   {
     icon: FiUsers,
-    title: "Duels en temps réel",
-    desc: "Défiez vos amis en multijoueur WebSocket. Élimination directe ou meilleur score.",
+    title: "Amis & Défis",
+    desc: "Ajoutez des amis, envoyez-leur un défi quiz et comparez vos scores pour voir qui s'en sort le mieux.",
     color: "from-amber-500/20 to-amber-600/5",
     border: "border-amber-500/20",
     iconColor: "text-amber-400",
@@ -144,7 +144,7 @@ export default function Landing() {
           className="text-gray-400 text-fluid-base max-w-xl mb-10 leading-relaxed"
         >
           Importez un document, obtenez un résumé en secondes et entraînez-vous avec des quiz personnalisés.
-          Suivez vos progrès et défiez vos amis en temps réel.
+          Suivez vos progrès, révisez intelligemment et défiez vos amis.
         </motion.p>
 
         {/* CTAs */}
@@ -173,7 +173,7 @@ export default function Landing() {
           initial={{ opacity: 0, y: 32 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, ease: EASE, delay: 0.4 }}
-          className="relative mt-16 w-full max-w-2xl mx-auto"
+          className="relative mt-16 w-full max-w-2xl mx-auto pb-6 sm:pb-0"
         >
           {/* Main card */}
           <div className="glass-panel rounded-[2rem] p-5 sm:p-7 border border-white/10 shadow-soft text-left">
@@ -223,7 +223,7 @@ export default function Landing() {
           <motion.div
             animate={{ y: [0, -6, 0] }}
             transition={{ duration: 4, ease: "easeInOut", repeat: Infinity }}
-            className="absolute -top-4 -right-2 sm:-right-6 bg-emerald-500/20 border border-emerald-500/40 rounded-2xl px-3 py-2 text-xs font-bold text-emerald-300 shadow-soft"
+            className="hidden sm:block absolute -top-4 -right-6 bg-emerald-500/20 border border-emerald-500/40 rounded-2xl px-3 py-2 text-xs font-bold text-emerald-300 shadow-soft"
           >
             🏆 Score : 94%
           </motion.div>
@@ -232,7 +232,7 @@ export default function Landing() {
           <motion.div
             animate={{ y: [0, 5, 0] }}
             transition={{ duration: 3.5, ease: "easeInOut", repeat: Infinity, delay: 1.5 }}
-            className="absolute -bottom-4 -left-2 sm:-left-6 bg-amber-500/20 border border-amber-500/40 rounded-2xl px-3 py-2 text-xs font-bold text-amber-300 shadow-soft"
+            className="hidden sm:block absolute -bottom-4 -left-6 bg-amber-500/20 border border-amber-500/40 rounded-2xl px-3 py-2 text-xs font-bold text-amber-300 shadow-soft"
           >
             🔥 Série : 12 jours
           </motion.div>
@@ -254,7 +254,7 @@ export default function Landing() {
           initial="initial"
           whileInView="animate"
           viewport={{ once: true, margin: "-80px" }}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 max-w-5xl mx-auto"
+          className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5 max-w-5xl mx-auto"
         >
           {FEATURES.map((f) => {
             const Icon = f.icon;
@@ -262,7 +262,7 @@ export default function Landing() {
               <motion.div
                 key={f.title}
                 variants={staggerItem}
-                className={`relative p-5 sm:p-6 rounded-2xl border bg-gradient-to-br ${f.color} ${f.border} overflow-hidden group`}
+                className={`relative p-4 sm:p-6 rounded-2xl border bg-gradient-to-br ${f.color} ${f.border} overflow-hidden group`}
               >
                 <div
                   className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl"
