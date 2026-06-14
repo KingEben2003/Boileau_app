@@ -115,6 +115,7 @@ jobs:
         with:
           name: frontend-user-build
           path: front/user/build/
+          include-hidden-files: true
           retention-days: 1
 
   # ───────────────────────────────────────────────────────────────────────────
@@ -148,6 +149,7 @@ jobs:
         with:
           name: frontend-admin-build
           path: front/admin/build/
+          include-hidden-files: true
           retention-days: 1
 
   # ───────────────────────────────────────────────────────────────────────────
