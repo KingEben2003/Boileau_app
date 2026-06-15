@@ -107,7 +107,15 @@ const Register = () => {
       login(res.data.user);
       navigate("/");
     } catch (err) {
-      setError(err?.response?.data?.error || "Une erreur est survenue lors de l'inscription.");
+      const d = err?.response?.data;
+      const msg = d?.error
+        || d?.email?.[0]
+        || d?.password?.[0]
+        || d?.username?.[0]
+        || d?.non_field_errors?.[0]
+        || (d && typeof d === "object" ? Object.values(d).flat()[0] : null)
+        || "Une erreur est survenue lors de l'inscription.";
+      setError(msg);
     } finally {
       setLoading(false);
     }
