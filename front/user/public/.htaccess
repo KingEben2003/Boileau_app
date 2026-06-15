@@ -1,4 +1,10 @@
 Options -MultiViews
 RewriteEngine On
+
+# Proxy /api/ vers le backend (contourne le certificat SSL auto-signé)
+RequestHeader set X-Forwarded-Proto "https"
+RewriteRule ^api/(.*)$ http://boileauapi.sc1zds18.universe.wf/api/$1 [P,L]
+
+# SPA routing
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^ index.html [QSA,L]
