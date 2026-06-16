@@ -2,7 +2,7 @@
 $uri = $_SERVER['REQUEST_URI'];
 if (strpos($uri, '/api/') !== 0) { http_response_code(400); exit; }
 
-$targetUrl = 'http://boileauapi.sc1zds18.universe.wf' . $uri;
+$targetUrl = 'https://boileauapi.sc1zds18.universe.wf' . $uri;
 $method    = $_SERVER['REQUEST_METHOD'];
 $fwdHeaders = ['X-Forwarded-Proto: https'];
 
