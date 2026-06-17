@@ -5,8 +5,8 @@
 #
 # CONFIGURATION — adaptez ces chemins à votre hébergement O2Switch
 # ─────────────────────────────────────────────────────────────────
-DEPLOY_PATH="/home/VOTRE_USER/boileau"
-PYTHON_BIN="/home/VOTRE_USER/virtualenv/boileau/back/3.12/bin/python"
+DEPLOY_PATH="/home3/sc1zds18/Boileau_app"
+PYTHON_BIN="/home3/sc1zds18/virtualenv/Boileau_app/back/3.12/bin/python"
 # Les React builds sont servis directement depuis :
 #   front/user/build/  → document root de boileau.sc1zds18.universe.wf
 #   front/admin/build/ → document root de admin.boileau.sc1zds18.universe.wf

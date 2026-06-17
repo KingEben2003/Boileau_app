@@ -9,10 +9,10 @@
 #      Commande : bash /home/VOTRE_USER/deploy_check.sh
 #      Fréquence : toutes les minutes (* * * * *)
 
-DEPLOY_PATH="/home/VOTRE_USER/boileau"
-DEPLOY_SCRIPT="/home/VOTRE_USER/deploy.sh"
-LOCKFILE="/home/VOTRE_USER/deploy.lock"
-LOGFILE="/home/VOTRE_USER/deploy.log"
+DEPLOY_PATH="/home3/sc1zds18/Boileau_app"
+DEPLOY_SCRIPT="/home3/sc1zds18/Boileau_app/o2switch_setup/deploy.sh"
+LOCKFILE="/home3/sc1zds18/boileau_deploy.lock"
+LOGFILE="/home3/sc1zds18/boileau_deploy.log"
 
 # Empêche les exécutions simultanées
 if [ -f "$LOCKFILE" ]; then
