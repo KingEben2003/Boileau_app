@@ -4,9 +4,6 @@ djangorestframework_simplejwt==5.5.1
 django-cors-headers==4.9.0
 requests==2.33.1
 dj-database-url==2.3.0
-channels==4.3.2
-daphne==4.2.2
-channels_redis==4.3.0
 psycopg2-binary==2.9.12
 pymysql==1.2.0
 whitenoise==6.9.0

@@ -17,6 +17,8 @@ Including another URLconf
 from django.contrib import admin
 from django.conf import settings
 from django.conf.urls.static import static
+from django.db import connection
+from django.http import JsonResponse
 from django.urls import include, path
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
@@ -24,7 +26,19 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
 )
 
+
+def health_check(request):
+    try:
+        connection.ensure_connection()
+        db_ok = True
+    except Exception:
+        db_ok = False
+    payload = {"status": "ok" if db_ok else "degraded", "db": "ok" if db_ok else "error"}
+    return JsonResponse(payload, status=200 if db_ok else 503)
+
+
 urlpatterns = [
+    path("health/", health_check, name="health-check"),
     path("admin/", admin.site.urls),
     path("api/", include("documents.urls")),
     path("api/", include("summaries.urls")),

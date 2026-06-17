@@ -16,7 +16,6 @@ on:
 #   GOOGLE_CLIENT_ID        Client ID OAuth Google
 #   ONESIGNAL_APP_ID        App ID OneSignal (push frontend)
 #   ONESIGNAL_REST_API_KEY  REST API Key OneSignal (push backend)
-#   REDIS_URL               URL Redis (laisser vide si pas de Redis)
 #   EMAIL_BACKEND           django.core.mail.backends.smtp.EmailBackend
 #   EMAIL_HOST              smtp.gmail.com (ou SMTP O2Switch)
 #   EMAIL_HOST_USER         votre-email@gmail.com
@@ -82,7 +81,7 @@ jobs:
         run: |
           python manage.py check
           python manage.py migrate --run-syncdb
-          python manage.py test --verbosity=1
+          python manage.py test --verbosity=2
 
   # ───────────────────────────────────────────────────────────────────────────
   # JOB 2 — Build React app utilisateur

@@ -65,8 +65,6 @@ ALLOWED_HOSTS = [h.strip() for h in os.getenv("ALLOWED_HOSTS", "localhost,127.0.
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 INSTALLED_APPS = [
-    'daphne',  # serveur ASGI pour runserver (doit précéder staticfiles/admin)
-    'channels',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -86,7 +84,6 @@ INSTALLED_APPS = [
     'adminapi',
     'gamesounds',
     'gamesettings',
-    'duel',
 ]
 
 MIDDLEWARE = [
@@ -119,22 +116,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'APIBoileau.wsgi.application'
-
-# ── Channels / WebSockets (multijoueur temps réel) ─────────────────────────────
-ASGI_APPLICATION = 'APIBoileau.asgi.application'
-# Dev : couche en mémoire (mono-process via runserver/daphne).
-# Prod : remplacer par channels_redis (RedisChannelLayer).
-_REDIS_URL = os.getenv("REDIS_URL", "")
-CHANNEL_LAYERS = {
-    "default": (
-        {
-            "BACKEND": "channels_redis.core.RedisChannelLayer",
-            "CONFIG": {"hosts": [_REDIS_URL]},
-        }
-        if _REDIS_URL
-        else {"BACKEND": "channels.layers.InMemoryChannelLayer"}
-    )
-}
 
 
 # Database
@@ -223,12 +204,17 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'users.authentication.CookieJWTAuthentication',
     ),
-    # Par défaut, toutes les vues exigent un utilisateur authentifié.
-    # Les endpoints publics (inscription, connexion, tokens, config publique)
-    # se désinscrivent explicitement via permission_classes = [AllowAny].
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '30/minute',
+        'user': '300/minute',
+    },
 }
 
 # ── Cookies JWT ───────────────────────────────────────────────────────────────
@@ -269,7 +255,7 @@ CORS_ALLOW_CREDENTIALS = True
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 GEMINI_TIMEOUT_SECONDS = int(os.getenv("GEMINI_TIMEOUT_SECONDS", "45"))
-GEMINI_SOURCE_MAX_CHARS = int(os.getenv("GEMINI_SOURCE_MAX_CHARS", "20000"))
+GEMINI_SOURCE_MAX_CHARS = int(os.getenv("GEMINI_SOURCE_MAX_CHARS", "500000"))
 # Mode simulation : renvoie de fausses données sans appeler l'API Gemini.
 # Mettre GEMINI_MOCK_MODE=true dans .env pour économiser les crédits.
 GEMINI_MOCK_MODE = os.getenv("GEMINI_MOCK_MODE", "false").lower() in ("true", "1", "yes")
@@ -291,3 +277,32 @@ DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@boileau.app")
 # ── Config publique frontend (exposée via /api/public-config/) ─────────────
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 ONESIGNAL_APP_ID = os.getenv("ONESIGNAL_APP_ID", "")
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "[{levelname}] {asctime} {module}: {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "root": {"handlers": ["console"], "level": "WARNING"},
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": os.getenv("DJANGO_LOG_LEVEL", "WARNING"),
+            "propagate": False,
+        },
+        "documents":  {"handlers": ["console"], "level": "WARNING", "propagate": False},
+        "summaries":  {"handlers": ["console"], "level": "WARNING", "propagate": False},
+        "quizzes":    {"handlers": ["console"], "level": "WARNING", "propagate": False},
+    },
+}

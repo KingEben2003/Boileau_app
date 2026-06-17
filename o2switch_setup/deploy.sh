@@ -47,9 +47,21 @@ echo "OK"
 
 # ── 4. Redémarrage Passenger ────────────────────────────────────────────────
 echo ""
-echo "=== [4/4] Redémarrage Phusion Passenger ==="
+echo "=== [4/5] Redémarrage Phusion Passenger ==="
 mkdir -p tmp && touch tmp/restart.txt
 echo "OK"
+
+# ── 5. Vérification post-déploiement ────────────────────────────────────────
+echo ""
+echo "=== [5/5] Vérification health check ==="
+sleep 5   # laisser Passenger redémarrer
+HEALTH_URL="https://boileau.sc1zds18.universe.wf/health/"
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "$HEALTH_URL" 2>/dev/null || echo "000")
+if [ "$HTTP_CODE" = "200" ]; then
+    echo "Health check OK (HTTP 200)"
+else
+    echo "AVERTISSEMENT : health check a retourné HTTP $HTTP_CODE (l'app a peut-être besoin de plus de temps)"
+fi
 
 echo ""
 echo "════════════════════════════════════════"
