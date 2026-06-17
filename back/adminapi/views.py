@@ -225,8 +225,14 @@ class AdminCultureQuestionsView(APIView):
     def get(self, request):
         qs = CultureQuestion.objects.all()
         theme = request.query_params.get("theme", "").strip()
+        qtype = request.query_params.get("type", "").strip()
+        difficulty = request.query_params.get("difficulty", "").strip()
         if theme:
             qs = qs.filter(theme=theme)
+        if qtype:
+            qs = qs.filter(type=qtype)
+        if difficulty:
+            qs = qs.filter(difficulty=difficulty)
         return Response(AdminCultureQuestionSerializer(qs, many=True).data)
 
     def post(self, request):
