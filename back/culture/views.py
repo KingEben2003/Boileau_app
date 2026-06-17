@@ -61,7 +61,10 @@ class CultureQuestionsView(APIView):
 class CultureSubmitView(APIView):
     def post(self, request):
         theme = request.data.get("theme", "").strip()
-        score = int(request.data.get("score", 0))
+        try:
+            score = int(float(request.data.get("score", 0)))
+        except (TypeError, ValueError):
+            return Response({"error": "Score invalide"}, status=status.HTTP_400_BAD_REQUEST)
         total = CultureQuestion.objects.filter(theme=theme).count()
 
         if not theme or total == 0:

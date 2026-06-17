@@ -58,7 +58,6 @@ const VerifyCode = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (timer <= 0) return;
 
     const fullCode = code.join("");
     if (fullCode.length < 6) {
@@ -153,13 +152,13 @@ const VerifyCode = () => {
               ))}
             </div>
 
-            {/* Timer */}
-            <div className={`flex items-center justify-center gap-2 text-sm ${timer <= 10 ? "text-pink-400" : "text-gray-500"}`}>
-              <FiClock size={14} className={timer <= 10 ? "animate-pulse" : ""} />
-              <span className={timer <= 10 ? "font-bold" : ""}>
-                {timer > 0 ? `Expire dans ${timer}s` : "Code expiré"}
-              </span>
-            </div>
+            {/* Resend cooldown */}
+            {timer > 0 && (
+              <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+                <FiClock size={14} />
+                <span>Renvoyer dans {timer}s</span>
+              </div>
+            )}
 
             {/* Error */}
             <AnimatePresence>
@@ -177,7 +176,7 @@ const VerifyCode = () => {
 
             <button
               type="submit"
-              disabled={loading || timer <= 0}
+              disabled={loading}
               className="btn-primary w-full py-3.5"
             >
               {loading ? (

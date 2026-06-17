@@ -269,7 +269,7 @@ CORS_ALLOW_CREDENTIALS = True
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 GEMINI_TIMEOUT_SECONDS = int(os.getenv("GEMINI_TIMEOUT_SECONDS", "45"))
-GEMINI_SOURCE_MAX_CHARS = int(os.getenv("GEMINI_SOURCE_MAX_CHARS", "12000"))
+GEMINI_SOURCE_MAX_CHARS = int(os.getenv("GEMINI_SOURCE_MAX_CHARS", "20000"))
 # Mode simulation : renvoie de fausses données sans appeler l'API Gemini.
 # Mettre GEMINI_MOCK_MODE=true dans .env pour économiser les crédits.
 GEMINI_MOCK_MODE = os.getenv("GEMINI_MOCK_MODE", "false").lower() in ("true", "1", "yes")

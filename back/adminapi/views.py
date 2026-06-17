@@ -117,10 +117,11 @@ class AdminUsersView(APIView):
     permission_classes = [IsAdminUser]
 
     def get(self, request):
+        from django.db.models import Q
         qs = User.objects.order_by("-date_joined")
         search = request.query_params.get("search", "").strip()
         if search:
-            qs = qs.filter(username__icontains=search) | qs.filter(email__icontains=search)
+            qs = qs.filter(Q(username__icontains=search) | Q(email__icontains=search))
         return Response(AdminUserSerializer(qs, many=True).data)
 
 

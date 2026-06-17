@@ -56,12 +56,21 @@ function toApiError(error) {
   const fallbackMessage = "Une erreur est survenue avec l'API.";
   const data = error?.response?.data;
 
-  if (typeof data === "string" && data.trim()) {
-    return new Error(data);
+  if (!data) return new Error(fallbackMessage);
+  if (typeof data === "string" && data.trim()) return new Error(data);
+
+  // DRF standard error fields
+  if (data.detail) return new Error(data.detail);
+  if (data.error) return new Error(data.error);
+  if (data.non_field_errors?.[0]) return new Error(data.non_field_errors[0]);
+
+  // Field-level validation errors: pick the first message from any field
+  for (const val of Object.values(data)) {
+    if (Array.isArray(val) && val[0]) return new Error(String(val[0]));
+    if (typeof val === "string" && val) return new Error(val);
   }
 
-  const message = data?.detail || data?.file?.[0] || data?.non_field_errors?.[0] || fallbackMessage;
-  return new Error(message);
+  return new Error(fallbackMessage);
 }
 
 /**

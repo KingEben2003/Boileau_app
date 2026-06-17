@@ -126,9 +126,14 @@ class GenerateQuizAPIView(APIView):
         difficulty = serializer.validated_data["difficulty"]
         number_of_questions = serializer.validated_data["number_of_questions"]
 
-        # 5) Cache : si un quiz identique existe déjà, le renvoyer directement
+        # 5) Cache : si un quiz identique avec suffisamment de questions existe déjà
         cached_quiz = (
-            Quiz.objects.filter(document=document, type=quiz_type, difficulty=difficulty)
+            Quiz.objects.filter(
+                document=document,
+                type=quiz_type,
+                difficulty=difficulty,
+                number_of_questions__gte=number_of_questions,
+            )
             .order_by("-created_at")
             .first()
         )

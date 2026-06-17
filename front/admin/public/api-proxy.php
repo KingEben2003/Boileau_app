@@ -6,9 +6,15 @@ $targetUrl = 'https://boileauapi.sc1zds18.universe.wf' . $uri;
 $method    = $_SERVER['REQUEST_METHOD'];
 $fwdHeaders = ['X-Forwarded-Proto: https'];
 
+$contentType = strtolower($_SERVER['CONTENT_TYPE'] ?? $_SERVER['HTTP_CONTENT_TYPE'] ?? '');
+$isMultipart = strpos($contentType, 'multipart/form-data') !== false;
+
 foreach (getallheaders() as $name => $value) {
     $l = strtolower($name);
-    if (in_array($l, ['content-type','authorization','cookie','x-csrftoken','accept'])) {
+    if (in_array($l, ['authorization', 'cookie', 'x-csrftoken', 'accept'])) {
+        $fwdHeaders[] = "$name: $value";
+    }
+    if ($l === 'content-type' && !$isMultipart) {
         $fwdHeaders[] = "$name: $value";
     }
 }
@@ -25,7 +31,17 @@ curl_setopt_array($ch, [
 ]);
 
 if (in_array($method, ['POST', 'PUT', 'PATCH'])) {
-    curl_setopt($ch, CURLOPT_POSTFIELDS, file_get_contents('php://input'));
+    if ($isMultipart) {
+        $postFields = $_POST;
+        foreach ($_FILES as $field => $f) {
+            if ($f['error'] === UPLOAD_ERR_OK) {
+                $postFields[$field] = new CURLFile($f['tmp_name'], $f['type'], $f['name']);
+            }
+        }
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $postFields);
+    } else {
+        curl_setopt($ch, CURLOPT_POSTFIELDS, file_get_contents('php://input'));
+    }
 }
 
 $response = curl_exec($ch);

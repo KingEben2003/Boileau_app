@@ -85,16 +85,16 @@ class GenerateSummaryAPIView(APIView):
         )
 
         # 4) Vérification que le PDF a bien du texte extrait
-        if not document.extracted_text:
+        if not document.extracted_text or not document.extracted_text.strip():
             return Response(
                 {
                     "detail": (
-                        "Ce PDF ne contient pas de texte extractible (probablement un scan ou une image). "
-                        "Appelez POST /api/documents/{id}/reextract/ pour retenter, "
-                        "ou utilisez un PDF avec du texte natif."
+                        "Impossible de générer un résumé : aucun texte n'a pu être extrait de ce PDF. "
+                        "Cela arrive avec les PDFs scannés (images). "
+                        "Utilisez le bouton 'Ré-extraire' ou uploadez un PDF avec du texte natif."
                     )
                 },
-                status=status.HTTP_400_BAD_REQUEST,
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
             )
 
         summary_type = serializer.validated_data["type"]

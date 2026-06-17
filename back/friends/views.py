@@ -271,7 +271,10 @@ class SubmitChallengeAnswersView(APIView):
 
         # Déterminer le gagnant
         c_score = challenge.challenger_score or 0
-        o_score = float(score) if score is not None else 0
+        try:
+            o_score = float(score) if score is not None else 0
+        except (TypeError, ValueError):
+            o_score = 0
         if c_score > o_score:
             challenge.winner = challenge.challenger
         elif o_score > c_score:

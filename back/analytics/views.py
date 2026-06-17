@@ -60,7 +60,10 @@ class AnalyticsSummaryView(APIView):
                 "date": r.date_passed.date().isoformat(),
                 "score": r.score,
                 "quiz_id": r.quiz_id,
-                "document_title": r.quiz.document.file.name if r.quiz.document else "",
+                "document_title": (
+                    r.quiz.document.title or r.quiz.document.file.name.split("/")[-1]
+                    if r.quiz.document else ""
+                ),
             }
             for r in recent_results
         ]
@@ -74,7 +77,7 @@ class AnalyticsSummaryView(APIView):
             mastery_levels.append(
                 {
                     "document_id": doc.id,
-                    "title": doc.file.name,
+                    "title": doc.title or doc.file.name.split("/")[-1],
                     "mastery": round(agg["avg"] or 0.0, 1),
                     "quizzes_count": agg["count"],
                 }
@@ -282,7 +285,7 @@ class AnalyticsDashboardView(APIView):
             else:
                 agg = Result.objects.filter(user=user, quiz__document=doc).aggregate(avg=Avg("score"))
                 mastery = round(agg["avg"] or 0.0, 1)
-            doc_masteries.append({"document_id": doc.id, "title": doc.file.name, "mastery": mastery})
+            doc_masteries.append({"document_id": doc.id, "title": doc.title or doc.file.name.split("/")[-1], "mastery": mastery})
 
         weakest_documents = sorted(doc_masteries, key=lambda d: d["mastery"])[:3]
 

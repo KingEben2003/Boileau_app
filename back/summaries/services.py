@@ -240,9 +240,15 @@ def generate_summary_with_gemini(source_text: str, summary_type: str) -> str:
             json=body,
             timeout=settings.GEMINI_TIMEOUT_SECONDS,
         )
+    except requests.Timeout:
+        raise GeminiServiceError(
+            "La génération du résumé a pris trop de temps. Réessayez avec un document plus court.",
+            status_code=504,
+        )
     except requests.RequestException as exc:
         raise GeminiServiceError(
-            f"Echec d'appel Gemini: {exc}", status_code=502
+            f"Impossible de joindre le service Gemini. Vérifiez votre connexion.",
+            status_code=502,
         ) from exc
 
     # 7) Vérifier le code de statut HTTP

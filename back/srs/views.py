@@ -54,7 +54,7 @@ class SRSDueView(APIView):
             data.append({
                 'id': sr.id,
                 'document_id': sr.document.id,
-                'document_title': sr.document.file.name.split('/')[-1],
+                'document_title': sr.document.title or sr.document.file.name.split('/')[-1],
                 'next_review': sr.next_review.isoformat(),
                 'interval_days': sr.interval_days,
                 'repetitions': sr.repetitions,
@@ -129,7 +129,7 @@ class SRSAllView(APIView):
             data.append({
                 'id': sr.id,
                 'document_id': sr.document.id,
-                'document_title': sr.document.file.name.split('/')[-1],
+                'document_title': sr.document.title or sr.document.file.name.split('/')[-1],
                 'next_review': sr.next_review.isoformat(),
                 'interval_days': sr.interval_days,
                 'repetitions': sr.repetitions,

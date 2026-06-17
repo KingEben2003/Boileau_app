@@ -8,6 +8,7 @@ import requests as http_requests
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
+from django.db import IntegrityError
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import AllowAny
@@ -128,15 +129,27 @@ class GoogleLoginView(APIView):
         first_name = payload.get("given_name", "")
         last_name = payload.get("family_name", "")
 
-        user, created = User.objects.get_or_create(
-            email__iexact=email,
-            defaults={
-                "email": email,
-                "username": email.split("@")[0],
-                "first_name": first_name,
-                "last_name": last_name,
-            },
-        )
+        base_username = email.split("@")[0]
+        try:
+            user, created = User.objects.get_or_create(
+                email__iexact=email,
+                defaults={
+                    "email": email,
+                    "username": base_username,
+                    "first_name": first_name,
+                    "last_name": last_name,
+                },
+            )
+        except IntegrityError:
+            # username déjà pris : on suffixe avec les 4 premiers chiffres aléatoires
+            suffix = "".join(random.choices(string.digits, k=4))
+            user = User.objects.create_user(
+                username=f"{base_username}_{suffix}",
+                email=email,
+                first_name=first_name,
+                last_name=last_name,
+            )
+            created = True
 
         if not created and (not user.first_name and first_name):
             user.first_name = first_name
@@ -209,26 +222,30 @@ class ForgotPasswordView(APIView):
 
         try:
             user = User.objects.get(email__iexact=email)
-            code = "".join(random.choices(string.digits, k=6))
-            user.reset_code = code
-            user.reset_code_expires_at = timezone.now() + timedelta(minutes=10)
-            user.save(update_fields=["reset_code", "reset_code_expires_at"])
-
-            send_mail(
-                subject="Réinitialisation de votre mot de passe Boileau",
-                message=(
-                    f"Votre code de vérification est : {code}\n\n"
-                    "Ce code expire dans 10 minutes.\n\n"
-                    "Si vous n'êtes pas à l'origine de cette demande, ignorez cet email."
-                ),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                fail_silently=False,
-            )
         except User.DoesNotExist:
-            pass  # Don't reveal whether email exists
+            return Response(
+                {"error": "Aucun compte n'est associé à cet email."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
-        return Response({"message": "Si un compte existe pour cet email, un code a été envoyé."})
+        code = "".join(random.choices(string.digits, k=6))
+        user.reset_code = code
+        user.reset_code_expires_at = timezone.now() + timedelta(minutes=10)
+        user.save(update_fields=["reset_code", "reset_code_expires_at"])
+
+        send_mail(
+            subject="Réinitialisation de votre mot de passe Boileau",
+            message=(
+                f"Votre code de vérification est : {code}\n\n"
+                "Ce code expire dans 10 minutes.\n\n"
+                "Si vous n'êtes pas à l'origine de cette demande, ignorez cet email."
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            fail_silently=False,
+        )
+
+        return Response({"message": "Un code de vérification a été envoyé à votre adresse email."})
 
 
 class VerifyCodeView(APIView):

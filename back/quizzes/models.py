@@ -71,6 +71,7 @@ class Result(models.Model):
     date_passed = models.DateTimeField(auto_now_add=True, db_index=True)
     time_spent_seconds = models.IntegerField(null=True, blank=True)
     answers_detail = models.JSONField(null=True, blank=True)
+    mastery_after = models.FloatField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.user.username} - {self.quiz.id} ({self.score})"
