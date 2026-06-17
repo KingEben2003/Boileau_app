@@ -1,5 +1,5 @@
-import os
-
-if os.getenv("DATABASE_URL", "").startswith("mysql://"):
+try:
     import pymysql
     pymysql.install_as_MySQLdb()
+except ImportError:
+    pass
